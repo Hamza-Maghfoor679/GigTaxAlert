@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button';
 import type { DashboardStackParamList } from '@/navigation/types';
 import { useDeadlines } from '@/hooks/useDeadlines';
 import { spacing, typography, useThemeColors } from '@/theme';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export type HomeScreenProps = NativeStackScreenProps<
   DashboardStackParamList,
@@ -28,7 +29,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   });
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <Text style={[typography.h1, { color: colors.textPrimary }]}>Dashboard</Text>
       <Button label="Refresh deadlines" onPress={() => void refetch()} />
       <DeadlineList
@@ -37,6 +38,6 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
           navigation.navigate('DeadlineDetail', { deadlineId: item.id })
         }
       />
-    </View>
+    </SafeAreaView>
   );
 }

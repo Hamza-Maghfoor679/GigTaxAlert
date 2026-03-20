@@ -1,5 +1,8 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
+import { StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import DeadlineCalendarScreen from '@/screens/calendar/DeadlineCalendarScreen';
 import DeadlineDetailScreen from '@/screens/dashboard/DeadlineDetailScreen';
@@ -9,7 +12,7 @@ import TaxSummaryScreen from '@/screens/estimator/TaxSummaryScreen';
 import ProfileScreen from '@/screens/settings/ProfileScreen';
 import SettingsScreen from '@/screens/settings/SettingsScreen';
 import SubscriptionScreen from '@/screens/settings/SubscriptionScreen';
-import { useThemeColors } from '@/theme';
+import { ms, s, typography, useThemeColors } from '@/theme';
 
 import type {
   DashboardStackParamList,
@@ -81,14 +84,63 @@ function SettingsStackNavigator() {
 
 export function MainNavigator() {
   const colors = useThemeColors();
+  const insets = useSafeAreaInsets();
+
+  const tabBarHeight = ms(56) + Math.max(insets.bottom, s(8));
+  const styles = StyleSheet.create({
+    tabBar: {
+      position: 'absolute',
+      left: s(12),
+      right: s(12),
+      bottom: Math.max(insets.bottom, s(10)),
+      height: tabBarHeight,
+      borderTopWidth: 0,
+      borderRadius: s(18),
+      backgroundColor: colors.surface,
+      paddingTop: s(6),
+      paddingBottom: Math.max(insets.bottom, s(8)),
+      paddingHorizontal: s(8),
+      elevation: 10,
+      shadowColor: '#000000',
+      shadowOpacity: 0.12,
+      shadowOffset: { width: 0, height: s(4) },
+      shadowRadius: s(10),
+    },
+    tabBarLabel: {
+      ...typography.labelSmall,
+      marginTop: s(2),
+    },
+  });
+
+  const getTabIcon = (
+    routeName: keyof MainTabParamList,
+    focused: boolean,
+    color: string,
+  ) => {
+    const iconSize = focused ? ms(22) : ms(20);
+    const iconMap: Record<keyof MainTabParamList, keyof typeof Ionicons.glyphMap> =
+      {
+        Dashboard: focused ? 'home' : 'home-outline',
+        Calendar: focused ? 'calendar' : 'calendar-outline',
+        Estimator: focused ? 'calculator' : 'calculator-outline',
+        Settings: focused ? 'settings' : 'settings-outline',
+      };
+
+    return <Ionicons name={iconMap[routeName]} size={iconSize} color={color} />;
+  };
 
   return (
     <Tab.Navigator
-      screenOptions={{
+      screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textSecondary,
-      }}
+        tabBarStyle: styles.tabBar,
+        tabBarLabelStyle: styles.tabBarLabel,
+        tabBarHideOnKeyboard: true,
+        tabBarIcon: ({ focused, color }) =>
+          getTabIcon(route.name as keyof MainTabParamList, focused, color),
+      })}
     >
       <Tab.Screen
         component={DashboardStackNavigator}

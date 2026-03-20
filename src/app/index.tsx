@@ -1,7 +1,14 @@
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
+import { useFonts } from 'expo-font';
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from '@expo-google-fonts/inter';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 
 import { RootNavigator } from '@/navigation/RootNavigator';
 import { ThemeProvider, useThemeMode } from '@/theme';
@@ -12,30 +19,28 @@ function ThemedStatusBar() {
 }
 
 export default function App() {
-  const [ready, setReady] = useState(false);
+  const [fontsLoaded, fontError] = useFonts({
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+  });
 
   useEffect(() => {
-    const prepare = async () => {
-      await SplashScreen.preventAutoHideAsync();
-      setReady(true);
-    };
-
-    void prepare();
+    void SplashScreen.preventAutoHideAsync();
   }, []);
 
   useEffect(() => {
-    if (!ready) {
+    if (!fontsLoaded && !fontError) {
       return;
     }
 
-    const id = setTimeout(() => {
-      void SplashScreen.hideAsync();
-    }, 0);
+    void SplashScreen.hideAsync();
+  }, [fontError, fontsLoaded]);
 
-    return () => {
-      clearTimeout(id);
-    };
-  }, [ready]);
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
 
   return (
     <ThemeProvider>
