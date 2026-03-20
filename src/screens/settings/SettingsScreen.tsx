@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button';
 import type { SettingsStackParamList } from '@/navigation/types';
 import { useAuthStore } from '@/stores/authStore';
 import { spacing, typography, useThemeColors, useThemeMode } from '@/theme';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export type SettingsScreenProps = NativeStackScreenProps<
   SettingsStackParamList,
@@ -26,8 +27,8 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
   });
 
   return (
-    <View style={styles.container}>
-      <Text style={typography.h1}>Settings</Text>
+    <SafeAreaView style={styles.container}>
+      <Text style={[typography.h1, { color: colors.textPrimary }]}>Settings</Text>
       <Button
         label="Subscription"
         onPress={() => navigation.navigate('Subscription')}
@@ -49,6 +50,6 @@ export default function SettingsScreen({ navigation }: SettingsScreenProps) {
         onPress={() => setThemeMode(isDark ? 'light' : 'dark')}
         variant="secondary"
       />
-    </View>
+    </SafeAreaView>
   );
 }

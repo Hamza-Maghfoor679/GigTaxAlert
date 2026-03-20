@@ -2,6 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { Card } from '@/components/ui/Card';
 import { spacing, typography, useThemeColors } from '@/theme';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function DeadlineCalendarScreen() {
   const colors = useThemeColors();
@@ -16,14 +17,14 @@ export default function DeadlineCalendarScreen() {
   });
 
   return (
-    <View style={styles.container}>
-      <Text style={typography.h1}>Calendar</Text>
+    <SafeAreaView style={styles.container}>
+      <Text style={[typography.h1, { color: colors.textPrimary }]}>Calendar</Text>
       <Card>
-        <Text style={typography.bodyMedium}>
+        <Text style={[typography.bodyMedium, { color: colors.textPrimary }]}>
           Month view + marked dates — integrate `react-native-calendars` or
           similar.
         </Text>
       </Card>
-    </View>
+    </SafeAreaView>
   );
 }

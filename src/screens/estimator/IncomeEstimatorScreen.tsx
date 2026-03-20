@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import type { EstimatorStackParamList } from '@/navigation/types';
 import { useIncomeEstimator } from '@/hooks/useIncomeEstimator';
 import { spacing, typography, useThemeColors } from '@/theme';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export type IncomeEstimatorScreenProps = NativeStackScreenProps<
   EstimatorStackParamList,
@@ -30,16 +31,16 @@ export default function IncomeEstimatorScreen({
   });
 
   return (
-    <View style={styles.container}>
-      <Text style={typography.h1}>Income estimator</Text>
+    <SafeAreaView style={styles.container}>
+      <Text style={[typography.h1, { color: colors.textPrimary }]}>Income estimator</Text>
       <IncomeForm initialGross={grossIncome} onChangeGross={setGrossIncome} />
-      <Button label="Recalculate" onPress={recalculate} />
+      <Button label="Recalculate" onPress={recalculate} variant="secondary" />
       <TaxBreakdown grossIncome={grossIncome} estimatedTax={estimatedTax} />
       <Button
         label="View summary"
         onPress={() => navigation.navigate('TaxSummary')}
         variant="secondary"
       />
-    </View>
+    </SafeAreaView>
   );
 }

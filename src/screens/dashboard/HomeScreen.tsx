@@ -23,14 +23,12 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
       backgroundColor: colors.background,
       padding: spacing.md,
       gap: spacing.sm,  
-      justifyContent: 'center',
-      alignItems: 'center',
     },
   });
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={[typography.h1, { color: colors.textPrimary }]}>Dashboard</Text>
+      <Text style={[typography.h1, { color: colors.textPrimary, textAlign: 'center' }]}>Dashboard</Text>
       <Button label="Refresh deadlines" onPress={() => void refetch()} />
       <DeadlineList
         deadlines={deadlines}

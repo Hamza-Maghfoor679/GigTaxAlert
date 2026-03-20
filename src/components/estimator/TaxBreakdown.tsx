@@ -26,16 +26,16 @@ export function TaxBreakdown({ grossIncome, estimatedTax }: TaxBreakdownProps) {
 
   return (
     <Card>
-      <Text style={typography.h3}>Estimate</Text>
+      <Text style={[typography.h3, { color: colors.textPrimary }]}>Estimate</Text>
       <View style={styles.row}>
-        <Text style={typography.bodyMedium}>Gross</Text>
-        <Text style={typography.bodyMedium}>{formatCurrency(grossIncome)}</Text>
+        <Text style={[typography.bodyMedium, { color: colors.textPrimary }]}>Gross</Text>
+        <Text style={[typography.bodyMedium, { color: colors.textPrimary }]}>{formatCurrency(grossIncome)}</Text>
       </View>
       <View style={styles.row}>
-        <Text style={typography.bodyMedium}>Est. SE tax (placeholder)</Text>
-        <Text style={typography.bodyMedium}>{formatCurrency(estimatedTax)}</Text>
+        <Text style={[typography.bodyMedium, { color: colors.textPrimary }]}>Est. SE tax (placeholder)</Text>
+        <Text style={[typography.bodyMedium, { color: colors.textPrimary }]}>{formatCurrency(estimatedTax)}</Text>
       </View>
-      <Text style={[typography.caption, styles.disclaimer]}>
+      <Text style={[typography.caption, styles.disclaimer, { color: colors.textSecondary }]}>
         Not tax advice — replace with jurisdiction-specific logic.
       </Text>
     </Card>

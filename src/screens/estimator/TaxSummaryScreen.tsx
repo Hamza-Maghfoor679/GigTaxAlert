@@ -5,6 +5,7 @@ import { TaxBreakdown } from '@/components/estimator/TaxBreakdown';
 import type { EstimatorStackParamList } from '@/navigation/types';
 import { useEstimatorStore } from '@/stores/estimatorStore';
 import { spacing, typography, useThemeColors } from '@/theme';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export type TaxSummaryScreenProps = NativeStackScreenProps<
   EstimatorStackParamList,
@@ -26,9 +27,9 @@ export default function TaxSummaryScreen(_props: TaxSummaryScreenProps) {
   });
 
   return (
-    <View style={styles.container}>
-      <Text style={typography.h2}>Tax summary</Text>
+    <SafeAreaView style={styles.container}>
+      <Text style={[typography.h2, { color: colors.textPrimary }]}>Tax summary</Text>
       <TaxBreakdown grossIncome={grossIncome} estimatedTax={estimatedTax} />
-    </View>
+    </SafeAreaView>
   );
 }

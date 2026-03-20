@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import type { SettingsStackParamList } from '@/navigation/types';
 import { useSubscription } from '@/hooks/useSubscription';
 import { spacing, typography, useThemeColors } from '@/theme';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export type SubscriptionScreenProps = NativeStackScreenProps<
   SettingsStackParamList,
@@ -23,7 +24,7 @@ export default function SubscriptionScreen(_props: SubscriptionScreenProps) {
       flex: 1,
       backgroundColor: colors.background,
       padding: spacing.md,
-      gap: spacing.md,
+      gap: spacing.sm,
     },
     sub: {
       color: colors.textSecondary,
@@ -31,8 +32,8 @@ export default function SubscriptionScreen(_props: SubscriptionScreenProps) {
   });
 
   return (
-    <View style={styles.container}>
-      <Text style={typography.h1}>Subscription</Text>
+    <SafeAreaView style={styles.container}>
+      <Text style={[typography.h1, { color: colors.textPrimary }]}>Subscription</Text>
       <Text style={[typography.bodyMedium, styles.sub]}>
         Pro: {isPro ? 'active' : 'inactive'}
       </Text>
@@ -42,6 +43,6 @@ export default function SubscriptionScreen(_props: SubscriptionScreenProps) {
         onClose={() => setShowPaywall(false)}
         onSubscribe={() => void purchasePro()}
       />
-    </View>
+    </SafeAreaView>
   );
 }

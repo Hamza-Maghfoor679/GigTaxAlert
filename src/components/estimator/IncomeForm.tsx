@@ -32,7 +32,7 @@ export function IncomeForm({ initialGross, onChangeGross }: IncomeFormProps) {
 
   return (
     <View style={styles.wrap}>
-      <Text style={typography.labelLarge}>Gross income (YTD)</Text>
+      <Text style={[typography.labelLarge, { color: colors.textPrimary }]}>Gross income (YTD)</Text>
       <TextInput
         keyboardType="decimal-pad"
         placeholder="0"
