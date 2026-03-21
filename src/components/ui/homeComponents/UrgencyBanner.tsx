@@ -1,10 +1,10 @@
 import * as Haptics from 'expo-haptics';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
 
-import type { Deadline } from '@/types/deadline.types';
 import { radius, s, spacing, typography, vs } from '@/theme';
 import { useThemeColors } from '@/theme';
+import { Deadline } from './deadline.types';
 
 type Props = {
   deadlines: Deadline[];
@@ -68,7 +68,7 @@ export function UrgencyBanner({ deadlines, onPress }: Props) {
   });
 
   return (
-    <Animated.View entering={FadeInDown.delay(50).springify().damping(18)} style={styles.wrapper}>
+    <Animated.View entering={FadeIn.delay(40).duration(200)} style={styles.wrapper}>
       {urgent.map((d, i) => {
         const accent = getAccent(d.daysLeft);
         const label  = d.daysLeft === 0 ? 'Due today!' : `${d.daysLeft}d left`;

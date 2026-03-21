@@ -1,7 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import { useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { useRefresh } from '@/hooks/useRefresh';
@@ -12,7 +12,6 @@ import { CalendarDeadlineList, CategoryFilterPills, MonthCalendar } from './comp
 import { useCalendarDeadlines } from './hooks/useCalendarDeadlines';
 import { FilterCategory } from './types/calendar.types';
 import { buildMarkedDates, deadlinesForMonth } from './utils/calendarHelpers';
-
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -72,7 +71,7 @@ export default function DeadlineCalendarScreen() {
         }
       >
         {/* ── Header ── */}
-        <Animated.View entering={FadeInDown.delay(0).springify().damping(18)} style={styles.header}>
+        <Animated.View entering={FadeIn.delay(0).duration(200)} style={styles.header}>
           <View style={styles.headerLeft}>
             <Text style={styles.headerTitle}>Calendar</Text>
             <Text style={styles.headerSubtitle}>Keep tax deadlines organized by month</Text>
@@ -93,13 +92,13 @@ export default function DeadlineCalendarScreen() {
         </Animated.View>
 
         {/* ── Category filter pills ── */}
-        <Animated.View entering={FadeInDown.delay(60).springify().damping(18)}>
+        <Animated.View entering={FadeIn.delay(60).duration(200)}>
           <CategoryFilterPills selected={filter} onChange={setFilter} />
         </Animated.View>
 
         {/* ── Calendar ── */}
         <Animated.View
-          entering={FadeInDown.delay(120).springify().damping(18)}
+          entering={FadeIn.delay(120).duration(200)}
           style={styles.calendarWrapper}
         >
           {loading ? (
@@ -176,6 +175,5 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
     todayBtnText: { ...typography.labelSmall, color: colors.primary, fontWeight: '700' },
     calendarWrapper: {
       marginHorizontal: spacing.md,
-      marginBottom: vs(12),
     },
   });

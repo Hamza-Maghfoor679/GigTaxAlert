@@ -47,7 +47,7 @@ export function CategoryFilterPills({ selected, onChange }: Props) {
             key={key}
             style={[styles.pill, { backgroundColor: bg, borderColor: border }]}
             onPress={() => {
-              void Haptics.selectionAsync();
+              // void Haptics.selectionAsync();
               onChange(key);
             }}
             activeOpacity={0.75}

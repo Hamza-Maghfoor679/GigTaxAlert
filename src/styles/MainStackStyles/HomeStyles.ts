@@ -15,8 +15,6 @@ export const homeStyles = (colors: Colors) =>
     headerRight:   { flexDirection: 'row', gap: s(10), alignItems: 'center' },
     greeting:      { ...typography.caption, color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 1.2 },
     headerTitle:   { ...typography.h2, color: colors.textPrimary },
-    iconBtn:       { width: s(40), height: s(40), borderRadius: radius.full, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-    iconBtnText:   { fontSize: s(18) },
     avatar:        { width: s(40), height: s(40), borderRadius: radius.full, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
     avatarText:    { ...typography.labelLarge, color: '#FFF', fontSize: s(14) },
 

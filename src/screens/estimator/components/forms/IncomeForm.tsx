@@ -1,6 +1,6 @@
 import * as Haptics from 'expo-haptics';
 import { ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { radius, s, spacing, typography, vs, useThemeColors } from '@/theme';
 import { EstimatorFormState } from '../../types/estimator.types';
@@ -27,7 +27,7 @@ function Field({ label, hint, value, onChange, prefix, delay }: FieldProps) {
   const styles = createStyles(colors);
 
   return (
-    <Animated.View entering={FadeInDown.delay(delay).springify().damping(18)} style={styles.fieldWrapper}>
+    <Animated.View entering={FadeIn.delay(delay).duration(200)} style={styles.fieldWrapper}>
       <View style={styles.labelRow}>
         <Text style={styles.label}>{label}</Text>
         <Text style={styles.hint}>{hint}</Text>
@@ -54,7 +54,7 @@ export function IncomeForm({ form, onChange, onSave, isSaving, currency = '$' }:
 
   return (
     <View style={styles.wrapper}>
-      <Animated.Text entering={FadeInDown.springify().damping(18)} style={styles.sectionTitle}>
+      <Animated.Text entering={FadeIn.duration(200)} style={styles.sectionTitle}>
         Income and Deductions
       </Animated.Text>
 
@@ -76,7 +76,7 @@ export function IncomeForm({ form, onChange, onSave, isSaving, currency = '$' }:
         delay={120}
       />
 
-      <Animated.View entering={FadeInDown.delay(180).springify().damping(18)}>
+      <Animated.View entering={FadeIn.delay(120).duration(200)}>
         <TouchableOpacity
           style={[styles.saveBtn, isSaving && styles.saveBtnDisabled]}
           onPress={() => {
@@ -101,7 +101,7 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
       borderWidth: 1,
       borderColor: colors.border,
       padding: spacing.md,
-      gap: vs(16),
+      gap: vs(10),
     },
     sectionTitle: { ...typography.h3, color: colors.textPrimary },
     fieldWrapper: { gap: vs(6) },
@@ -116,7 +116,7 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
       borderColor: colors.border,
       borderRadius: radius.lg,
       paddingHorizontal: s(14),
-      height: vs(52),
+      height: vs(48),
       gap: s(8),
     },
     prefix: { ...typography.bodyLarge, color: colors.textSecondary },
@@ -124,7 +124,7 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
     saveBtn: {
       backgroundColor: colors.primary,
       borderRadius: radius.lg,
-      height: vs(50),
+      height: vs(40),
       alignItems: 'center',
       justifyContent: 'center',
       flexDirection: 'row',

@@ -1,11 +1,12 @@
 import * as Haptics from 'expo-haptics';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Animated, {
-  FadeInDown,
-  FadeOutLeft,
+  Easing,
+  FadeIn,
+  FadeOut,
   useAnimatedStyle,
   useSharedValue,
-  withSpring,
+  withTiming,
 } from 'react-native-reanimated';
 
 
@@ -26,7 +27,7 @@ type Props = {
  * Displays a single deadline with:
  * - Colour-coded category pill
  * - "in X days" countdown (or "Today!" / "Overdue")
- * - Spring-animated checkmark toggle
+ * - Brief checkmark scale feedback on toggle
  * - Full-row tap → detail bottom sheet
  */
 export function DeadlineCountdownCard({
@@ -45,8 +46,8 @@ export function DeadlineCountdownCard({
 
   const handleToggle = () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    scale.value = withSpring(1.3, { damping: 10 }, () => {
-      scale.value = withSpring(1, { damping: 12 });
+    scale.value = withTiming(1.12, { duration: 120, easing: Easing.out(Easing.quad) }, () => {
+      scale.value = withTiming(1, { duration: 140, easing: Easing.out(Easing.quad) });
     });
     onToggleComplete(deadline.id, deadline.isCompleted);
   };
@@ -140,8 +141,8 @@ export function DeadlineCountdownCard({
 
   return (
     <Animated.View
-      entering={FadeInDown.delay(index * 60).springify().damping(18)}
-      exiting={FadeOutLeft.springify()}
+      entering={FadeIn.delay(Math.min(index * 24, 96)).duration(200)}
+      exiting={FadeOut.duration(160)}
     >
       <TouchableOpacity
         style={styles.card}

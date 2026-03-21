@@ -1,6 +1,6 @@
 import * as Haptics from 'expo-haptics';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { CATEGORY_META } from '@/constants/deadlineCategories';
 import { Deadline } from '@/components/ui/homeComponents/deadline.types';
@@ -89,7 +89,7 @@ export function CalendarDeadlineList({ deadlines, monthLabel, onCardPress, onTog
         deadlines.map((d, i) => {
           const meta = CATEGORY_META[d.category];
           return (
-            <Animated.View key={d.id} entering={FadeInDown.delay(i * 50).springify().damping(18)}>
+            <Animated.View key={d.id} entering={FadeIn.delay(Math.min(i * 24, 120)).duration(200)}>
               <TouchableOpacity
                 style={styles.card}
                 onPress={() => {

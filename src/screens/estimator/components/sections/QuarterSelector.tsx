@@ -29,7 +29,6 @@ export function QuarterSelector({ selected, year, onChange, onYearChange }: Prop
         <TouchableOpacity
           style={styles.yearBtn}
           onPress={() => {
-            void Haptics.selectionAsync();
             onYearChange(year - 1);
           }}
           activeOpacity={0.7}
@@ -40,7 +39,6 @@ export function QuarterSelector({ selected, year, onChange, onYearChange }: Prop
         <TouchableOpacity
           style={styles.yearBtn}
           onPress={() => {
-            void Haptics.selectionAsync();
             onYearChange(year + 1);
           }}
           activeOpacity={0.7}
@@ -63,7 +61,6 @@ export function QuarterSelector({ selected, year, onChange, onYearChange }: Prop
                 },
               ]}
               onPress={() => {
-                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 onChange(q);
               }}
               activeOpacity={0.8}

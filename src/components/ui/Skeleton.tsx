@@ -1,5 +1,5 @@
 import { StyleSheet, View } from 'react-native';
-import Animated, { FadeInDown, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
+import Animated, { FadeIn, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { useEffect } from 'react';
 import { s } from '@/theme';
 
@@ -38,7 +38,7 @@ export function Skeleton({ width, height, borderRadius, style }: SkeletonProps) 
 
   return (
     <Animated.View
-      entering={FadeInDown.springify()}
+      entering={FadeIn.duration(200)}
       style={[
         {
           width,

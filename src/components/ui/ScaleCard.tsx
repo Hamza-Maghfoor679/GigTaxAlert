@@ -1,10 +1,11 @@
 import React from 'react';
 import { TouchableOpacity } from 'react-native';
 import Animated, {
-  FadeInDown,
+  FadeIn,
+  Easing,
   useAnimatedStyle,
   useSharedValue,
-  withSpring,
+  withTiming,
 } from 'react-native-reanimated';
 
 type ScaleCardProps = {
@@ -13,7 +14,7 @@ type ScaleCardProps = {
   style?: object;
   /** If omitted the card is non-interactive (no press feedback) */
   onPress?: () => void;
-  /** FadeInDown entrance delay in ms (default 0) */
+  /** Entrance delay in ms (default 0) */
   delay?: number;
   /** Spring scale target on press-in (default 0.95) */
   scaleTo?: number;
@@ -23,8 +24,8 @@ type ScaleCardProps = {
  * ScaleCard
  *
  * Animated wrapper that combines:
- * - FadeInDown spring entrance (staggerable via `delay`)
- * - Spring scale-down on press-in / scale-back on press-out
+ * - Short fade-in entrance (staggerable via `delay`)
+ * - Light scale on press-in / press-out
  *
  * @example
  * <ScaleCard delay={120} onPress={handlePress}>
@@ -41,12 +42,13 @@ export function ScaleCard({
   const scale    = useSharedValue(1);
   const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
-  const onPressIn  = () => { scale.value = withSpring(scaleTo, { damping: 15 }); };
-  const onPressOut = () => { scale.value = withSpring(1,       { damping: 15 }); };
+  const timing = { duration: 90, easing: Easing.out(Easing.quad) };
+  const onPressIn  = () => { scale.value = withTiming(scaleTo, timing); };
+  const onPressOut = () => { scale.value = withTiming(1, timing); };
 
   return (
     <Animated.View
-      entering={FadeInDown.delay(delay).springify().damping(18)}
+      entering={FadeIn.delay(delay).duration(200)}
       style={[animStyle, style]}
     >
       <TouchableOpacity
