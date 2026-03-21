@@ -8,6 +8,7 @@ import {
   Inter_700Bold,
 } from '@expo-google-fonts/inter';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useEffect } from 'react';
 
 import { RootNavigator } from '@/navigation/RootNavigator';
@@ -31,23 +32,20 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!fontsLoaded && !fontError) {
-      return;
-    }
-
+    if (!fontsLoaded && !fontError) return;
     void SplashScreen.hideAsync();
   }, [fontError, fontsLoaded]);
 
-  if (!fontsLoaded && !fontError) {
-    return null;
-  }
+  if (!fontsLoaded && !fontError) return null;
 
   return (
-    <ThemeProvider>
-      <SafeAreaProvider>
-        <RootNavigator />
-        <ThemedStatusBar />
-      </SafeAreaProvider>
-    </ThemeProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ThemeProvider>
+        <SafeAreaProvider>
+          <RootNavigator />
+          <ThemedStatusBar />
+        </SafeAreaProvider>
+      </ThemeProvider>
+    </GestureHandlerRootView>
   );
 }

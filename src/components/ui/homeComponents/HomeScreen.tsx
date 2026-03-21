@@ -6,21 +6,20 @@ import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } 
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { DeadlineCountdownCard } from '@/components/deadlines/DeadlineCountdownCard';
+import { DeadlineDetailSheet } from '@/components/deadlines/DeadlineDetailSheet';
 import { HomeSkeleton } from '@/components/ui/HomeSkeleton';
-
+import { TaxEstimateWidget } from '@/components/deadlines/TaxEstimateWidget';
+import { UrgencyBanner } from '@/components/deadlines/UrgencyBanner';
 import { ScaleCard } from '@/components/ui/ScaleCard';
 import { useDeadlines } from '@/hooks/useDeadlines';
 import { useRefresh } from '@/hooks/useRefresh';
+import { useTaxEstimate } from '@/hooks/useTaxEstimate';
 import type { DashboardStackParamList, RootStackParamList } from '@/navigation/types';
 import { homeStyles } from '@/styles/MainStackStyles/HomeStyles';
 import { radius, s, spacing, typography, vs, useThemeColors } from '@/theme';
+import type { Deadline } from '@/types/deadline.types';
 import { getGreeting, getFormattedDate } from '@/utils/dateHelpers';
-import { Deadline } from '@/components/ui/homeComponents/deadline.types';
-import { TaxEstimateWidget } from '@/components/ui/homeComponents/TaxEstimateWidget';
-import { UrgencyBanner } from '@/components/ui/homeComponents/UrgencyBanner';
-import { DeadlineCountdownCard } from '@/components/ui/homeComponents/DeadlineCountdownCard';
-import { DeadlineDetailSheet } from '@/components/ui/homeComponents/DeadlineDetailSheet';
-import { useTaxEstimate } from '@/hooks/Usetaxestimate ';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -42,8 +41,8 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
 
   // ── Derived data ──────────────────────────────────────────────────────────
 
-  const active    = deadlines?.filter((d) => !d.isComplete) ?? [];
-  const completed = deadlines?.filter((d) => d.isComplete)  ?? [];
+  const active    = deadlines?.filter((d) => !d.isCompleted) ?? [];
+  const completed = deadlines?.filter((d) => d.isCompleted)  ?? [];
   const upcoming  = active.slice().sort((a, b) => a.daysLeft - b.daysLeft).slice(0, 3);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -119,8 +118,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
             <TaxEstimateWidget
               estimate={estimate ?? null}
               delay={120}
-              // onPress={() => rootNav.navigate('Estimator')}
-              onPress={() => {}}
+              onPress={() => rootNav.navigate('Estimator')}
             />
 
             {/* ── Upcoming deadlines (next 3) ── */}
@@ -145,11 +143,11 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
                 upcoming.map((d, i) => (
                   <DeadlineCountdownCard
                     key={d.id}
-                    deadline={d as unknown as Deadline}
+                    deadline={d}
                     index={i}
                     onPress={openDetail}
-                    onToggleComplete={(id) => toggleComplete(id)}
-                  />  
+                    onToggleComplete={(id, current) => toggleComplete(id, current)}
+                  />
                 ))
               )}
             </View>
@@ -164,13 +162,13 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
                   {completed.map((d, i) => (
                     <DeadlineCountdownCard
                       key={d.id}
-                      deadline={d as unknown as Deadline}
+                      deadline={d}
                       index={i}
                       onPress={openDetail}
-                      onToggleComplete={(id) => toggleComplete(id)}
+                      onToggleComplete={(id, current) => toggleComplete(id, current)}
                     />
                   ))}
-                </View>     
+                </View>
               </>
             )}
           </>

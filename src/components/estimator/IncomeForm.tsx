@@ -6,6 +6,7 @@ import { radius, spacing, typography, useThemeColors } from '@/theme';
 type IncomeFormProps = {
   initialGross: number;
   onChangeGross: (value: number) => void;
+  
 };
 
 export function IncomeForm({ initialGross, onChangeGross }: IncomeFormProps) {

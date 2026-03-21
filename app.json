@@ -27,7 +27,14 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-font"
+      "expo-font",
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "GigTax needs calendar access to add your tax deadlines.",
+          "remindersPermission": "GigTax needs reminders access to set deadline alerts."
+        }
+      ]
     ]
   }
 }
