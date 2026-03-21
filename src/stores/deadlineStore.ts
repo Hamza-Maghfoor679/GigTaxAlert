@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 export type DeadlineItem = {
+  daysLeft: number;
   id: string;
   title: string;
   dueDate: string;

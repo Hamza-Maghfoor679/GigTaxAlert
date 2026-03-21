@@ -9,7 +9,7 @@ export function useDeadlines() {
   const deadlines = useDeadlineStore((s) => s.deadlines);
   const setDeadlines = useDeadlineStore((s) => s.setDeadlines);
   const [loading, setLoading] = useState(false);
-
+  const toggleComplete = useDeadlineStore((s) => s.toggleComplete);
   const refetch = useCallback(async () => {
     setLoading(true);
     try {
@@ -20,5 +20,5 @@ export function useDeadlines() {
     }
   }, [setDeadlines]);
 
-  return { deadlines, loading, refetch };
+  return { deadlines, loading, refetch, toggleComplete };
 }

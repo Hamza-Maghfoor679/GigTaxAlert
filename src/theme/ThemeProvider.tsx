@@ -17,7 +17,7 @@ const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
 export function ThemeProvider({
   children,
-  initialThemeMode = 'system',
+  initialThemeMode = 'dark',
 }: {
   children: ReactNode;
   initialThemeMode?: ThemeMode;
