@@ -14,7 +14,11 @@ import { useEffect } from 'react';
 import { RootNavigator } from '@/navigation/RootNavigator';
 import { ThemeProvider, useThemeMode } from '@/theme';
 import { useExpoPushToken } from '@/hooks/useExpoPushNotifications';
-import { GoogleSignin } from '@react-native-google-signin/google-signin'
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+
+// Web client ID from Firebase (type 3) — must match google-services.json oauth_client
+const GOOGLE_WEB_CLIENT_ID =
+  '97946692169-jv5kb4v2scgjakh94hh4m5rv65j5ii66.apps.googleusercontent.com';
 
 // ─── Themed status bar ────────────────────────────────────────────────────────
 
@@ -27,10 +31,6 @@ function ThemedStatusBar() {
 
 function PushTokenRegistrar() {
   const { token, error } = useExpoPushToken();
-  GoogleSignin.configure({
-    webClientId: '309622540478-u8tdestsubckbnlen9hbk7bhpqvmor1n.apps.googleusercontent.com',
-    scopes: ['email', 'profile'],
-  })
 
   useEffect(() => {
     if (!token) return;
@@ -61,6 +61,13 @@ export default function App() {
 
   useEffect(() => {
     void SplashScreen.preventAutoHideAsync();
+  }, []);
+
+  useEffect(() => {
+    GoogleSignin.configure({
+      webClientId: GOOGLE_WEB_CLIENT_ID,
+      scopes: ['email', 'profile'],
+    });
   }, []);
 
   useEffect(() => {
