@@ -244,7 +244,7 @@ export default function WelcomeScreen({ navigation }: WelcomeScreenProps) {
                 void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               }}
               onPressOut={() => { btnScale.value = withSpring(1, { damping: 15 }); }}
-              onPress={() => navigation.navigate('LoginSignUp')}
+              onPress={() => navigation.navigate('CountrySelect')}
             >
               <Text style={styles.ctaBtnTxt}>Get started — it's free</Text>
             </Pressable>

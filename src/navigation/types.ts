@@ -1,9 +1,6 @@
 export type AuthStackParamList = {
   Welcome: undefined;
   LoginSignUp: undefined;
-};
-
-export type OnboardingStackParamList = {
   CountrySelect: undefined;
   FreelanceType: undefined;
 };

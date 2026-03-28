@@ -1,17 +1,15 @@
-import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useEffect } from 'react';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Button,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import Animated, {
-  FadeIn,
   FadeInDown,
   FadeInUp,
   useAnimatedStyle,
@@ -23,14 +21,14 @@ import Animated, {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import * as Haptics from 'expo-haptics';
-import { useState } from 'react';
-import auth from '@react-native-firebase/auth'; // ✅ Firebase
+import auth from '@react-native-firebase/auth';
+import firestore from '@react-native-firebase/firestore';
+import { FontAwesome } from '@expo/vector-icons';
 
-import type { AuthStackParamList, RootStackParamList } from '@/navigation/types';
+import type { AuthStackParamList } from '@/navigation/types';
 import { useAuthStore } from '@/stores/authStore';
 import { radius, s, ms, spacing, typography, vs, useThemeColors, useThemeMode } from '@/theme';
-import { useNavigation } from '@react-navigation/native';
-import { FontAwesome } from '@expo/vector-icons';
+import { useOnboardingStore } from '@/stores/useOnboardingStore';
 
 // ─── Configure Google Sign-In (once at module level) ──────────────────────────
 GoogleSignin.configure({
@@ -86,21 +84,21 @@ function FloatingOrb({
 // ─── Google button ────────────────────────────────────────────────────────────
 
 function GoogleButton({ onPress, loading }: { onPress: () => void; loading: boolean }) {
-  const colors  = useThemeColors();
-  const scale   = useSharedValue(1);
+  const colors    = useThemeColors();
+  const scale     = useSharedValue(1);
   const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
   const styles = StyleSheet.create({
     btn: {
-      flexDirection:   'row',
-      alignItems:      'center',
-      justifyContent:  'center',
-      gap:             s(10),
-      backgroundColor: colors.surface,
-      borderRadius:    radius.lg,
-      borderWidth:     1,
-      borderColor:     colors.border,
-      paddingVertical: vs(16),
+      flexDirection:     'row',
+      alignItems:        'center',
+      justifyContent:    'center',
+      gap:               s(10),
+      backgroundColor:   colors.surface,
+      borderRadius:      radius.lg,
+      borderWidth:       1,
+      borderColor:       colors.border,
+      paddingVertical:   vs(16),
       paddingHorizontal: spacing.lg,
     },
     label: {
@@ -126,7 +124,7 @@ function GoogleButton({ onPress, loading }: { onPress: () => void; loading: bool
           <ActivityIndicator color={colors.primary} size="small" />
         ) : (
           <>
-            <FontAwesome name='google' size={20} color={colors.textPrimary} />
+            <FontAwesome name="google" size={20} color={colors.textPrimary} />
             <Text style={styles.label}>Continue with Google</Text>
           </>
         )}
@@ -162,42 +160,79 @@ function FeaturePill({ emoji, label }: { emoji: string; label: string }) {
 
 export default function LoginSignUpScreen(_props: LoginSignUpScreenProps) {
   const colors    = useThemeColors();
-  const { isDark} = useThemeMode();
+  const { isDark } = useThemeMode();
   const setStatus = useAuthStore((s) => s.setStatus);
+
+  // Read the country + freelanceType collected during onboarding screens
+  const { country, freelanceType, clear: clearOnboarding } = useOnboardingStore();
+
   const [loading, setLoading] = useState(false);
 
-  type RootNav = NativeStackNavigationProp<RootStackParamList>;
-  const rootNav = useNavigation<RootNav>();
-
-  // ── Google Sign-In Handler ────────────────────────────────────────────────
+  // ── Google Sign-In ────────────────────────────────────────────────────────
   const onGooglePress = async () => {
     setLoading(true);
     try {
-      // 1. Check Google Play Services (Android requirement)
+      // ── 1. Google sign-in ──────────────────────────────────────────────
       await GoogleSignin.hasPlayServices();
-
-      // 2. Trigger native Google Sign-In sheet
       const userInfo = await GoogleSignin.signIn();
-      const idToken = userInfo.data?.idToken;
-      console.log("idToken", idToken)
-
+      const idToken  = userInfo.data?.idToken;
       if (!idToken) throw new Error('No ID token received from Google');
 
-      // 3. Create Firebase credential from Google token
+      // ── 2. Firebase Auth ───────────────────────────────────────────────
       const googleCredential = auth.GoogleAuthProvider.credential(idToken);
+      const userCredential   = await auth().signInWithCredential(googleCredential);
+      const firebaseUser     = userCredential.user;
+      const isNewUser        = userCredential.additionalUserInfo?.isNewUser;
 
-      // 4. Sign in to Firebase with the credential
-      const userCredential = await auth().signInWithCredential(googleCredential);
+      // ── 3. Write to Firestore ──────────────────────────────────────────
+      const userRef = firestore().collection('users').doc(firebaseUser.uid);
 
-      // 5. Navigate based on whether user is new or returning
-      const isNewUser = userCredential.additionalUserInfo?.isNewUser;
-      setStatus(isNewUser ? 'onboarding' : 'authenticated' as any);
+      if (isNewUser) {
+        // New user: write the full document with onboarding data.
+        // { merge: true } is safe even if onUserCreated Cloud Function
+        // already wrote a base doc — it fills in missing fields only.
+        await userRef.set(
+          {
+            uid:          firebaseUser.uid,
+            email:        firebaseUser.email         ?? '',
+            displayName:  firebaseUser.displayName   ?? '',
+            photoURL:     firebaseUser.photoURL      ?? null,
+            provider:     'google',
+
+            // Onboarding selections collected before sign-in
+            country:      country,        // from onboardingStore
+            freelanceType: freelanceType, // from onboardingStore
+            vatRegistered: false,
+
+            subscriptionTier: 'free',
+            revenueCatId:     null,
+            fcmToken:         null,
+
+            onboardingComplete:     true,
+            deadlinesGeneratedYear: null, // Cloud Function sets this after generating deadlines
+
+            createdAt: firestore.FieldValue.serverTimestamp(),
+            updatedAt: firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true },
+        );
+      } else {
+        // Returning user: just refresh the updatedAt timestamp.
+        // All other fields stay as they are in Firestore.
+        await userRef.update({
+          updatedAt: firestore.FieldValue.serverTimestamp(),
+        });
+      }
+
+      // ── 4. Clean up + navigate ─────────────────────────────────────────
+      clearOnboarding();           // wipe temporary onboardingStore
+      setStatus('main'); // navigate to main app (Home tab)
 
     } catch (error: any) {
       if (error.code === statusCodes.SIGN_IN_CANCELLED) {
-        // User closed the sheet — do nothing
+        // User closed the Google sheet — do nothing
       } else if (error.code === statusCodes.IN_PROGRESS) {
-        // Already signing in — do nothing
+        // Sign-in already in progress — do nothing
       } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
         Alert.alert('Error', 'Google Play Services not available on this device.');
       } else {
@@ -209,30 +244,9 @@ export default function LoginSignUpScreen(_props: LoginSignUpScreenProps) {
     }
   };
 
-  // const onSignOut = () => {
-  //   void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-  //   Alert.alert('Sign out', 'Are you sure you want to sign out?', [
-  //     { text: 'Cancel', style: 'cancel' },
-  //     {
-  //       text: 'Sign out',
-  //       style: 'destructive',
-  //       onPress: async () => {  // ✅ async goes here, before the arrow
-  //         try {
-  //           await GoogleSignin.revokeAccess();
-  //           await GoogleSignin.signOut();
-  //           await auth().signOut();
-  //           setStatus('auth');
-  //         } catch (error) {
-  //           console.error('Sign-out error:', error);
-  //         }
-  //       },
-  //     },
-  //   ]);
-  // };
-
   const styles = StyleSheet.create({
-    safe:    { flex: 1, backgroundColor: colors.background },
-    screen:  { flex: 1, paddingHorizontal: spacing.lg },
+    safe:      { flex: 1, backgroundColor: colors.background },
+    screen:    { flex: 1, paddingHorizontal: spacing.lg },
     orbsLayer: { ...StyleSheet.absoluteFillObject, overflow: 'hidden' },
     logoWrap: {
       marginTop:  vs(64),
@@ -252,8 +266,8 @@ export default function LoginSignUpScreen(_props: LoginSignUpScreenProps) {
     logoEmoji: { fontSize: s(32) },
     appName: {
       ...typography.h2,
-      color:       colors.textPrimary,
-      textAlign:   'center',
+      color:         colors.textPrimary,
+      textAlign:     'center',
       letterSpacing: -0.5,
     },
     tagline: {
@@ -262,9 +276,9 @@ export default function LoginSignUpScreen(_props: LoginSignUpScreenProps) {
       textAlign: 'center',
     },
     heroBlock: {
-      flex:       1,
+      flex:           1,
       justifyContent: 'center',
-      gap:        vs(8),
+      gap:            vs(8),
     },
     heroTitle: {
       fontSize:      ms(34, 0.4),
@@ -291,8 +305,8 @@ export default function LoginSignUpScreen(_props: LoginSignUpScreenProps) {
     },
     terms: {
       ...typography.caption,
-      color:     colors.textSecondary,
-      textAlign: 'center',
+      color:      colors.textSecondary,
+      textAlign:  'center',
       lineHeight: vs(18),
     },
     termsLink: { color: colors.primary, fontFamily: 'Inter_600SemiBold' },
@@ -302,9 +316,30 @@ export default function LoginSignUpScreen(_props: LoginSignUpScreenProps) {
     ? 'rgba(37,99,235,0.12)'
     : 'rgba(37,99,235,0.07)';
 
+     const onSignOut = () => {
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+        Alert.alert('Sign out', 'Are you sure you want to sign out?', [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Sign out',
+            style: 'destructive',
+            onPress: async () => {  // ✅ async goes here, before the arrow
+              try {
+                await GoogleSignin.revokeAccess();
+                await GoogleSignin.signOut();
+                // await auth().signOut();
+                setStatus('auth');
+              } catch (error) {
+                console.error('Sign-out error:', error);
+              }
+            },
+          },
+        ]);
+      };
+
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      {/* <Button  title='signout' onPress={() => onSignOut}/> */}
+    <Button title='Sign Out' onPress={() => onSignOut} />
       <View style={styles.orbsLayer} pointerEvents="none">
         <FloatingOrb size={220} top={-60}  right={-60}  color={orbColor} delay={0}    />
         <FloatingOrb size={160} top={180}  left={-80}   color={orbColor} delay={600}  />
@@ -327,14 +362,14 @@ export default function LoginSignUpScreen(_props: LoginSignUpScreenProps) {
             {'\n'}again.
           </Text>
           <Text style={styles.heroSub}>
-            Built for freelancers and self-employed workers who want to stay on top of their tax obligations — without the stress.
+            Built for freelancers and self-employed workers who want to stay on top
+            of their tax obligations — without the stress.
           </Text>
-
           <View style={styles.pillsRow}>
-            <FeaturePill emoji="⏰" label="Deadline alerts"   />
-            <FeaturePill emoji="💰" label="Tax estimates"     />
-            <FeaturePill emoji="📅" label="Calendar sync"     />
-            <FeaturePill emoji="📄" label="PDF summaries"     />
+            <FeaturePill emoji="⏰" label="Deadline alerts" />
+            <FeaturePill emoji="💰" label="Tax estimates"   />
+            <FeaturePill emoji="📅" label="Calendar sync"   />
+            <FeaturePill emoji="📄" label="PDF summaries"   />
           </View>
         </Animated.View>
 

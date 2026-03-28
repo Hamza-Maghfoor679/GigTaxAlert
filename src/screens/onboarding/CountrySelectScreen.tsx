@@ -10,11 +10,12 @@ import Animated, {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 
-import type { OnboardingStackParamList } from '@/navigation/types';
 import { radius, s, ms, spacing, typography, vs, useThemeColors } from '@/theme';
+import { AuthStackParamList } from '@/navigation/types';
+import { useOnboardingStore } from '@/stores/useOnboardingStore';
 
 export type CountrySelectScreenProps = NativeStackScreenProps<
-  OnboardingStackParamList,
+  AuthStackParamList,
   'CountrySelect'
 >;
 
@@ -113,7 +114,8 @@ function CountryCard({
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
 export default function CountrySelectScreen({ navigation }: CountrySelectScreenProps) {
-  const colors = useThemeColors();
+  const colors      = useThemeColors();
+  const setCountry  = useOnboardingStore((s: any) => s.setCountry); // ← saves to memory only
   const [selected, setSelected] = useState<CountryCode | null>(null);
 
   const btnScale = useSharedValue(1);
@@ -127,7 +129,7 @@ export default function CountrySelectScreen({ navigation }: CountrySelectScreenP
   const onNext = () => {
     if (!selected) return;
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    // TODO: persist selected country to profile / store
+    setCountry(selected);              // ← store in onboardingStore, no Firestore yet
     navigation.navigate('FreelanceType');
   };
 

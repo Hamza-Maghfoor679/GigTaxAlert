@@ -10,12 +10,12 @@ import Animated, {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 
-import type { OnboardingStackParamList } from '@/navigation/types';
-import { useAuthStore } from '@/stores/authStore';
 import { radius, s, ms, spacing, typography, vs, useThemeColors } from '@/theme';
+import { AuthStackParamList } from '@/navigation/types';
+import { useOnboardingStore } from '@/stores/useOnboardingStore';
 
 export type FreelanceTypeScreenProps = NativeStackScreenProps<
-  OnboardingStackParamList,
+  AuthStackParamList,
   'FreelanceType'
 >;
 
@@ -174,7 +174,7 @@ function TypeCard({
           </View>
         </View>
 
-        {/* Relevant tax tags */}
+        {/* Relevant tax tags — shown only when selected */}
         {selected && (
           <Animated.View
             entering={FadeInDown.delay(0).duration(180)}
@@ -194,9 +194,11 @@ function TypeCard({
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
-export default function FreelanceTypeScreen(_props: FreelanceTypeScreenProps) {
-  const setStatus = useAuthStore((s) => s.setStatus);
-  const colors    = useThemeColors();
+export default function FreelanceTypeScreen({ navigation }: FreelanceTypeScreenProps) {
+  // ↑ Fixed: was `_props` — navigation was never in scope, causing a runtime crash
+
+  const setFreelanceType = useOnboardingStore((s) => s.setFreelanceType); // ← memory only
+  const colors           = useThemeColors();
   const [selected, setSelected] = useState<FreelanceValue | null>(null);
 
   const btnScale = useSharedValue(1);
@@ -210,8 +212,9 @@ export default function FreelanceTypeScreen(_props: FreelanceTypeScreenProps) {
   const onFinish = () => {
     if (!selected) return;
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    // TODO: persist freelance type to profile / store
-    setStatus('main');
+    setFreelanceType(selected);           // ← store in onboardingStore, no Firestore yet
+    navigation.navigate('LoginSignUp');   // ← Fixed: was 'loginSignup' (wrong casing)
+    // setStatus is NOT called here — LoginSignUpScreen handles navigation after sign-in
   };
 
   const styles = StyleSheet.create({
