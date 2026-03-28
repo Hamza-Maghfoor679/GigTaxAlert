@@ -14,6 +14,7 @@ import { useEffect } from 'react';
 import { RootNavigator } from '@/navigation/RootNavigator';
 import { ThemeProvider, useThemeMode } from '@/theme';
 import { useExpoPushToken } from '@/hooks/useExpoPushNotifications';
+import { GoogleSignin } from '@react-native-google-signin/google-signin'
 
 // ─── Themed status bar ────────────────────────────────────────────────────────
 
@@ -26,6 +27,10 @@ function ThemedStatusBar() {
 
 function PushTokenRegistrar() {
   const { token, error } = useExpoPushToken();
+  GoogleSignin.configure({
+    webClientId: '309622540478-u8tdestsubckbnlen9hbk7bhpqvmor1n.apps.googleusercontent.com',
+    scopes: ['email', 'profile'],
+  })
 
   useEffect(() => {
     if (!token) return;

@@ -16,6 +16,7 @@ import { useSettingsProfile } from './hooks/useSettingsProfile';
 import { useSubscription } from './hooks/useSubscription';
 import { makeSettingsStyles } from './styles/SettingsStyles';
 import { useAuthStore } from '@/stores/authStore';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
 export default function SettingsScreen() {
   const colors = useThemeColors();
@@ -38,8 +39,19 @@ export default function SettingsScreen() {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     Alert.alert('Sign out', 'Are you sure you want to sign out?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign out', style: 'destructive',  
-        onPress: () => { setStatus("auth") } 
+      {
+        text: 'Sign out',
+        style: 'destructive',
+        onPress: async () => {  // ✅ async goes here, before the arrow
+          try {
+            await GoogleSignin.revokeAccess();
+            await GoogleSignin.signOut();
+            // await auth().signOut();
+            setStatus('auth');
+          } catch (error) {
+            console.error('Sign-out error:', error);
+          }
+        },
       },
     ]);
   };

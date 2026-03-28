@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "97946692169",
+    "project_id": "gigtaxalert-8b328",
+    "storage_bucket": "gigtaxalert-8b328.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:97946692169:android:57fae1382fbb8b3dcead98",
+        "android_client_info": {
+          "package_name": "com.gigtax.alert"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "97946692169-9o4m5o42hjnb3kf36v3hgmkt6fjmah3l.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.gigtax.alert",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "97946692169-jv5kb4v2scgjakh94hh4m5rv65j5ii66.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDQXBELPnSIbJvSCGW3rYcw-NDZVqjRPs4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "97946692169-jv5kb4v2scgjakh94hh4m5rv65j5ii66.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
