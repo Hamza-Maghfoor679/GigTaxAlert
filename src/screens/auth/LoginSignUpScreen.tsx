@@ -2,7 +2,8 @@ import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-n
 import { useEffect } from 'react';
 import {
   ActivityIndicator,
-  Image,
+  Alert,
+  Button,
   Platform,
   Pressable,
   StyleSheet,
@@ -20,10 +21,10 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as Google from 'expo-auth-session/providers/google';
-import * as WebBrowser from 'expo-web-browser';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import * as Haptics from 'expo-haptics';
 import { useState } from 'react';
+import auth from '@react-native-firebase/auth'; // ✅ Firebase
 
 import type { AuthStackParamList, RootStackParamList } from '@/navigation/types';
 import { useAuthStore } from '@/stores/authStore';
@@ -31,12 +32,15 @@ import { radius, s, ms, spacing, typography, vs, useThemeColors, useThemeMode } 
 import { useNavigation } from '@react-navigation/native';
 import { FontAwesome } from '@expo/vector-icons';
 
-// Required for expo-auth-session on Android
-WebBrowser.maybeCompleteAuthSession();
+// ─── Configure Google Sign-In (once at module level) ──────────────────────────
+GoogleSignin.configure({
+  webClientId: '97946692169-jv5kb4v2scgjakh94hh4m5rv65j5ii66.apps.googleusercontent.com',
+  scopes: ['email', 'profile'],
+});
 
 export type LoginSignUpScreenProps = NativeStackScreenProps<AuthStackParamList, 'LoginSignUp'>;
 
-// ─── Floating orb (decorative background element) ────────────────────────────
+// ─── Floating orb ─────────────────────────────────────────────────────────────
 
 function FloatingOrb({
   size, top, left, right, color, delay,
@@ -99,10 +103,6 @@ function GoogleButton({ onPress, loading }: { onPress: () => void; loading: bool
       paddingVertical: vs(16),
       paddingHorizontal: spacing.lg,
     },
-    googleLogo: {
-      width:  s(20),
-      height: s(20),
-    },
     label: {
       ...typography.labelLarge,
       color:    colors.textPrimary,
@@ -126,7 +126,6 @@ function GoogleButton({ onPress, loading }: { onPress: () => void; loading: bool
           <ActivityIndicator color={colors.primary} size="small" />
         ) : (
           <>
-            {/* Inline Google "G" SVG as text — no asset needed */}
             <FontAwesome name='google' size={20} color={colors.textPrimary} />
             <Text style={styles.label}>Continue with Google</Text>
           </>
@@ -167,57 +166,74 @@ export default function LoginSignUpScreen(_props: LoginSignUpScreenProps) {
   const setStatus = useAuthStore((s) => s.setStatus);
   const [loading, setLoading] = useState(false);
 
-  // ── Expo Google Auth ─────────────────────────────────────────────────────
-  // const [_request, response, promptAsync] = Google.useAuthRequest({
-  //   // TODO: replace with your actual client IDs from Google Cloud Console
-  //   // iosClientId:     'YOUR_IOS_CLIENT_ID.apps.googleusercontent.com',
-  //   // androidClientId: 'YOUR_ANDROID_CLIENT_ID.apps.googleusercontent.com',
-  //   // webClientId:     'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com',
-  // });
+  type RootNav = NativeStackNavigationProp<RootStackParamList>;
+  const rootNav = useNavigation<RootNav>();
 
-  // useEffect(() => {
-  //   if (response?.type === 'success') {
-  //     const { authentication } = response;
-  //     handleGoogleSignIn(authentication?.accessToken);
-  //   }
-  // }, [response]);
-
-  const handleGoogleSignIn = async (accessToken?: string) => {
-    if (!accessToken) return;
+  // ── Google Sign-In Handler ────────────────────────────────────────────────
+  const onGooglePress = async () => {
     setLoading(true);
     try {
-      // TODO: exchange token with Supabase
-      // const { data, error } = await supabase.auth.signInWithIdToken({
-      //   provider: 'google',
-      //   token: accessToken,
-      // });
-      // if (error) throw error;
+      // 1. Check Google Play Services (Android requirement)
+      await GoogleSignin.hasPlayServices();
 
-      await new Promise((r) => setTimeout(r, 800)); // simulate
-      setStatus('onboarding');
-    } catch (e) {
-      console.error('Google sign-in failed:', e);
+      // 2. Trigger native Google Sign-In sheet
+      const userInfo = await GoogleSignin.signIn();
+      const idToken = userInfo.data?.idToken;
+      console.log("idToken", idToken)
+
+      if (!idToken) throw new Error('No ID token received from Google');
+
+      // 3. Create Firebase credential from Google token
+      const googleCredential = auth.GoogleAuthProvider.credential(idToken);
+
+      // 4. Sign in to Firebase with the credential
+      const userCredential = await auth().signInWithCredential(googleCredential);
+
+      // 5. Navigate based on whether user is new or returning
+      const isNewUser = userCredential.additionalUserInfo?.isNewUser;
+      setStatus(isNewUser ? 'onboarding' : 'authenticated' as any);
+
+    } catch (error: any) {
+      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+        // User closed the sheet — do nothing
+      } else if (error.code === statusCodes.IN_PROGRESS) {
+        // Already signing in — do nothing
+      } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        Alert.alert('Error', 'Google Play Services not available on this device.');
+      } else {
+        console.error('Google sign-in error:', error);
+        Alert.alert('Sign-in Failed', 'Something went wrong. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
   };
-type RootNav = NativeStackNavigationProp<RootStackParamList>;
-const rootNav = useNavigation<RootNav>();
 
-
-  const onGooglePress = async () => {
-    // await promptAsync();
-    setStatus('onboarding')
-  };
+  // const onSignOut = () => {
+  //   void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+  //   Alert.alert('Sign out', 'Are you sure you want to sign out?', [
+  //     { text: 'Cancel', style: 'cancel' },
+  //     {
+  //       text: 'Sign out',
+  //       style: 'destructive',
+  //       onPress: async () => {  // ✅ async goes here, before the arrow
+  //         try {
+  //           await GoogleSignin.revokeAccess();
+  //           await GoogleSignin.signOut();
+  //           await auth().signOut();
+  //           setStatus('auth');
+  //         } catch (error) {
+  //           console.error('Sign-out error:', error);
+  //         }
+  //       },
+  //     },
+  //   ]);
+  // };
 
   const styles = StyleSheet.create({
     safe:    { flex: 1, backgroundColor: colors.background },
     screen:  { flex: 1, paddingHorizontal: spacing.lg },
-
-    // ── Background orbs ──
     orbsLayer: { ...StyleSheet.absoluteFillObject, overflow: 'hidden' },
-
-    // ── Logo block ──
     logoWrap: {
       marginTop:  vs(64),
       alignItems: 'center',
@@ -230,7 +246,6 @@ const rootNav = useNavigation<RootNav>();
       backgroundColor: colors.primary,
       alignItems:      'center',
       justifyContent:  'center',
-      // Subtle inner shadow simulation via border
       borderWidth:     1,
       borderColor:     colors.primary,
     },
@@ -246,8 +261,6 @@ const rootNav = useNavigation<RootNav>();
       color:     colors.textSecondary,
       textAlign: 'center',
     },
-
-    // ── Hero text ──
     heroBlock: {
       flex:       1,
       justifyContent: 'center',
@@ -266,27 +279,16 @@ const rootNav = useNavigation<RootNav>();
       color:      colors.textSecondary,
       lineHeight: vs(22),
     },
-
-    // ── Feature pills ──
     pillsRow: {
       flexDirection: 'row',
       flexWrap:      'wrap',
       gap:           s(8),
       marginTop:     vs(4),
     },
-
-    // ── Bottom CTA block ──
     bottomBlock: {
       paddingBottom: vs(32),
       gap:           vs(16),
     },
-    dividerRow: {
-      flexDirection:  'row',
-      alignItems:     'center',
-      gap:            s(10),
-    },
-    dividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
-    dividerTxt:  { ...typography.caption, color: colors.textDisabled },
     terms: {
       ...typography.caption,
       color:     colors.textSecondary,
@@ -302,7 +304,7 @@ const rootNav = useNavigation<RootNav>();
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      {/* ── Decorative floating orbs ── */}
+      {/* <Button  title='signout' onPress={() => onSignOut}/> */}
       <View style={styles.orbsLayer} pointerEvents="none">
         <FloatingOrb size={220} top={-60}  right={-60}  color={orbColor} delay={0}    />
         <FloatingOrb size={160} top={180}  left={-80}   color={orbColor} delay={600}  />
@@ -310,7 +312,6 @@ const rootNav = useNavigation<RootNav>();
       </View>
 
       <View style={styles.screen}>
-        {/* ── Logo ── */}
         <Animated.View entering={FadeInDown.delay(0).springify().damping(18)} style={styles.logoWrap}>
           <View style={styles.logoBox}>
             <Text style={styles.logoEmoji}>🧾</Text>
@@ -319,7 +320,6 @@ const rootNav = useNavigation<RootNav>();
           <Text style={styles.tagline}>Tax deadlines for freelancers</Text>
         </Animated.View>
 
-        {/* ── Hero copy ── */}
         <Animated.View entering={FadeInDown.delay(80).springify().damping(18)} style={styles.heroBlock}>
           <Text style={styles.heroTitle}>
             Never miss a{'\n'}
@@ -338,10 +338,8 @@ const rootNav = useNavigation<RootNav>();
           </View>
         </Animated.View>
 
-        {/* ── Bottom CTA ── */}
         <Animated.View entering={FadeInUp.delay(160).springify().damping(18)} style={styles.bottomBlock}>
           <GoogleButton onPress={() => void onGooglePress()} loading={loading} />
-
           <Text style={styles.terms}>
             By continuing you agree to our{' '}
             <Text style={styles.termsLink}>Terms of Service</Text>

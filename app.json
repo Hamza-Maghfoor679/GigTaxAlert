@@ -24,6 +24,7 @@
     },
     "android": {
       "package": "com.gigtax.alert",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -43,6 +44,18 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "kotlinVersion": "2.0.21",
+            "compileSdkVersion": 36,
+            "targetSdkVersion": 36,
+            "minSdkVersion": 24,
+            "buildToolsVersion": "35.0.0"
+          }
+        }
+      ],
       "expo-font",
       [
         "expo-calendar",
@@ -54,13 +67,18 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/notification-icon.png",
           "color": "#2563EB",
           "androidMode": "default",
           "androidCollapsedTitle": "GigTax Alert",
           "iosDisplayInForeground": true
         }
-      ]
-    ]
+      ],
+      "@react-native-google-signin/google-signin"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "8d54fb30-4110-4d85-8b15-6ca745805d03"
+      }
+    }
   }
 }
