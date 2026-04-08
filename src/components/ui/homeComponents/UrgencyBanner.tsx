@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import * as Haptics from 'expo-haptics';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
@@ -23,9 +24,13 @@ type Props = {
 export function UrgencyBanner({ deadlines, onPress }: Props) {
   const colors = useThemeColors();
 
-  const urgent = deadlines
-    .filter((d) => d.daysLeft <= 7 && !d.isCompleted)
-    .sort((a, b) => a.daysLeft - b.daysLeft);
+  const urgent = useMemo(
+    () =>
+      deadlines
+        .filter((d) => d.daysLeft <= 7 && !d.isComplete)
+        .sort((a, b) => a.daysLeft - b.daysLeft),
+    [deadlines],
+  );
 
   if (urgent.length === 0) return null;
 

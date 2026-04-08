@@ -50,12 +50,18 @@ export function DeadlineDetailSheet({ deadline, onClose }: Props) {
   );
 
   const handlePayNow = () => {
-    if (!deadline?.paymentUrl) return;
+    const paymentUrl = (deadline as unknown as { paymentUrl?: string } | null)?.paymentUrl;
+    if (!paymentUrl) return;
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    void Linking.openURL(deadline.paymentUrl);
+    void Linking.openURL(paymentUrl);
   };
 
-  const meta = deadline ? CATEGORY_META[deadline.category] : null;
+  const categoryKey = deadline
+    ? (((deadline as unknown as { category?: keyof typeof CATEGORY_META }).category ??
+        deadline.type ??
+        'other') as keyof typeof CATEGORY_META)
+    : 'other';
+  const meta = deadline ? CATEGORY_META[categoryKey] ?? CATEGORY_META.other : null;
 
   const styles = StyleSheet.create({
     handle: {
@@ -153,7 +159,9 @@ export function DeadlineDetailSheet({ deadline, onClose }: Props) {
         </View>
 
         <View style={styles.dueRow}>
-          <Text style={styles.dueDate}>Due {deadline.dueDate}</Text>
+          <Text style={styles.dueDate}>
+            Due {deadline.dueDate instanceof Date ? deadline.dueDate.toLocaleDateString() : String(deadline.dueDate)}
+          </Text>
           <View style={styles.daysChip}>
             <Text style={styles.daysChipTxt}>{daysLabel}</Text>
           </View>
@@ -170,11 +178,14 @@ export function DeadlineDetailSheet({ deadline, onClose }: Props) {
         <View style={styles.penaltySection}>
           <Text style={styles.sectionIcon}>⚠️</Text>
           <Text style={styles.penaltyTitle}>If you miss this</Text>
-          <Text style={styles.penaltyBody}>{deadline.penaltyInfo}</Text>
+          <Text style={styles.penaltyBody}>
+            {(deadline as unknown as { penaltyInfo?: string }).penaltyInfo ??
+              'Missing this deadline may result in penalties or interest.'}
+          </Text>
         </View>
 
         {/* ── Pay now CTA ── */}
-        {!!deadline.paymentUrl && (
+        {!!(deadline as unknown as { paymentUrl?: string }).paymentUrl && (
           <TouchableOpacity style={styles.payBtn} onPress={handlePayNow} activeOpacity={0.85}>
             <Text style={styles.payBtnText}>Pay now →</Text>
           </TouchableOpacity>

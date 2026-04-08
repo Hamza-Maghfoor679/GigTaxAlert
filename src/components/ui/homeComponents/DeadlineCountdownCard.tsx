@@ -1,3 +1,4 @@
+import { useCallback, useMemo } from 'react';
 import * as Haptics from 'expo-haptics';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Animated, {
@@ -37,107 +38,116 @@ export function DeadlineCountdownCard({
   onToggleComplete,
 }: Props) {
   const colors = useThemeColors();
-  const meta   = CATEGORY_META[deadline.category];
+  const isDone = deadline.isComplete;
+  const categoryKey = ((deadline as unknown as { category?: keyof typeof CATEGORY_META }).category ??
+    deadline.type ??
+    'other') as keyof typeof CATEGORY_META;
+  const meta = CATEGORY_META[categoryKey] ?? CATEGORY_META.other;
   const scale  = useSharedValue(1);
 
   const checkAnimStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
   }));
 
-  const handleToggle = () => {
+  const handleToggle = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     scale.value = withTiming(1.12, { duration: 120, easing: Easing.out(Easing.quad) }, () => {
       scale.value = withTiming(1, { duration: 140, easing: Easing.out(Easing.quad) });
     });
-    onToggleComplete(deadline.id, deadline.isCompleted);
-  };
+    onToggleComplete(deadline.id, isDone);
+  }, [deadline.id, isDone, onToggleComplete, scale]);
+  const handlePress = useCallback(() => onPress(deadline), [deadline, onPress]);
 
-  const getDaysLabel = () => {
-    if (deadline.isCompleted) return '✓ Done';
+  const daysLabel = useMemo(() => {
+    if (isDone) return '✓ Done';
     if (deadline.daysLeft === 0) return 'Due today!';
     if (deadline.daysLeft < 0)  return 'Overdue';
     return `in ${deadline.daysLeft} day${deadline.daysLeft === 1 ? '' : 's'}`;
-  };
+  }, [deadline.daysLeft, isDone]);
 
-  const getDaysColor = () => {
-    if (deadline.isCompleted)   return colors.secondary;
+  const daysColor = useMemo(() => {
+    if (isDone)   return colors.secondary;
     if (deadline.daysLeft <= 3) return colors.danger;
     if (deadline.daysLeft <= 7) return colors.warning;
     return colors.textSecondary;
-  };
+  }, [colors.danger, colors.secondary, colors.textSecondary, colors.warning, deadline.daysLeft, isDone]);
 
-  const styles = StyleSheet.create({
-    card: {
-      backgroundColor: colors.surface,
-      borderRadius: radius.lg,
-      borderWidth: 1,
-      borderColor: deadline.isCompleted ? colors.border : deadline.daysLeft <= 7 && !deadline.isCompleted
-        ? colors.danger + '30'
-        : colors.border,
-      paddingHorizontal: s(14),
-      paddingVertical: vs(12),
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: s(12),
-    },
-    left: {
-      flex: 1,
-      gap: vs(5),
-    },
-    titleRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: s(8),
-      flexWrap: 'wrap',
-    },
-    title: {
-      ...typography.labelLarge,
-      color: deadline.isCompleted ? colors.textDisabled : colors.textPrimary,
-      textDecorationLine: deadline.isCompleted ? 'line-through' : 'none',
-      flexShrink: 1,
-    },
-    pill: {
-      paddingHorizontal: s(8),
-      paddingVertical: vs(2),
-      borderRadius: radius.full,
-    },
-    pillText: {
-      ...typography.caption,
-      fontWeight: '600',
-    },
-    dueRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: s(6),
-    },
-    dueDate: {
-      ...typography.bodySmall,
-      color: colors.textSecondary,
-    },
-    daysLeft: {
-      ...typography.labelSmall,
-      fontWeight: '700',
-    },
-    checkBtn: {
-      width: s(32),
-      height: s(32),
-      borderRadius: radius.full,
-      borderWidth: 2,
-      borderColor: deadline.isCompleted ? colors.secondary : colors.border,
-      backgroundColor: deadline.isCompleted ? colors.secondary : 'transparent',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    checkMark: {
-      ...typography.bodySmall,
-      color: '#FFF',
-      fontWeight: '700',
-    },
-    arrow: {
-      ...typography.bodyMedium,
-      color: colors.textDisabled,
-    },
-  });
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        card: {
+          backgroundColor: colors.surface,
+          borderRadius: radius.lg,
+          borderWidth: 1,
+          borderColor: isDone ? colors.border : deadline.daysLeft <= 7 && !isDone
+            ? colors.danger + '30'
+            : colors.border,
+          paddingHorizontal: s(14),
+          paddingVertical: vs(12),
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: s(12),
+        },
+        left: {
+          flex: 1,
+          gap: vs(5),
+        },
+        titleRow: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: s(8),
+          flexWrap: 'wrap',
+        },
+        title: {
+          ...typography.labelLarge,
+          color: isDone ? colors.textDisabled : colors.textPrimary,
+          textDecorationLine: isDone ? 'line-through' : 'none',
+          flexShrink: 1,
+        },
+        pill: {
+          paddingHorizontal: s(8),
+          paddingVertical: vs(2),
+          borderRadius: radius.full,
+        },
+        pillText: {
+          ...typography.caption,
+          fontWeight: '600',
+        },
+        dueRow: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: s(6),
+        },
+        dueDate: {
+          ...typography.bodySmall,
+          color: colors.textSecondary,
+        },
+        daysLeft: {
+          ...typography.labelSmall,
+          fontWeight: '700',
+        },
+        checkBtn: {
+          width: s(32),
+          height: s(32),
+          borderRadius: radius.full,
+          borderWidth: 2,
+          borderColor: isDone ? colors.secondary : colors.border,
+          backgroundColor: isDone ? colors.secondary : 'transparent',
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+        checkMark: {
+          ...typography.bodySmall,
+          color: '#FFF',
+          fontWeight: '700',
+        },
+        arrow: {
+          ...typography.bodyMedium,
+          color: colors.textDisabled,
+        },
+      }),
+    [colors, deadline.daysLeft, isDone],
+  );
 
   return (
     <Animated.View
@@ -146,13 +156,13 @@ export function DeadlineCountdownCard({
     >
       <TouchableOpacity
         style={styles.card}
-        onPress={() => onPress(deadline)}
+        onPress={handlePress}
         activeOpacity={0.75}
       >
         {/* ── Checkmark toggle ── */}
         <Animated.View style={checkAnimStyle}>
           <TouchableOpacity style={styles.checkBtn} onPress={handleToggle} activeOpacity={0.8}>
-            {deadline.isCompleted && <Text style={styles.checkMark}>✓</Text>}
+            {isDone && <Text style={styles.checkMark}>✓</Text>}
           </TouchableOpacity>
         </Animated.View>
 
@@ -167,15 +177,19 @@ export function DeadlineCountdownCard({
             </View>
           </View>
           <View style={styles.dueRow}>
-            <Text style={styles.dueDate}>{deadline.dueDate}</Text>
-            <Text style={[styles.daysLeft, { color: getDaysColor() }]}>
-              · {getDaysLabel()}
+            <Text style={styles.dueDate}>
+              {deadline.dueDate instanceof Date
+                ? deadline.dueDate.toLocaleDateString()
+                : String(deadline.dueDate)}
+            </Text>
+            <Text style={[styles.daysLeft, { color: daysColor }]}>
+              · {daysLabel}
             </Text>
           </View>
         </View>
 
         {/* ── Chevron ── */}
-        {!deadline.isCompleted && <Text style={styles.arrow}>›</Text>}
+        {!isDone && <Text style={styles.arrow}>›</Text>}
       </TouchableOpacity>
     </Animated.View>
   );

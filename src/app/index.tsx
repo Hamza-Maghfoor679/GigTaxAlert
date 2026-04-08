@@ -15,6 +15,11 @@ import { RootNavigator } from '@/navigation/RootNavigator';
 import { ThemeProvider, useThemeMode } from '@/theme';
 import { useExpoPushToken } from '@/hooks/useExpoPushNotifications';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { UserProfileProvider } from '@/context/UserProfileContext';
+import { getAuth } from '@react-native-firebase/auth';
+import { useAuthStore } from '@/stores/authStore';
+import { clearAuthToken, getAuthToken, setAuthToken } from '@/services/authToken';
+import { setUnauthorizedHandler } from '@/services/apiClient';
 
 // Web client ID from Firebase (type 3) — must match google-services.json oauth_client
 const GOOGLE_WEB_CLIENT_ID =
@@ -70,22 +75,71 @@ export default function App() {
     });
   }, []);
 
+  const setStatus = useAuthStore((s) => s.setStatus);
+  const setBootstrapping = useAuthStore((s) => s.setBootstrapping);
+  const isBootstrapping = useAuthStore((s) => s.isBootstrapping);
+
+  useEffect(() => {
+    const bootstrapAuth = async () => {
+      try {
+        const token = await getAuthToken();
+        if (!token) {
+          setStatus('auth');
+          return;
+        }
+
+        const currentUser = getAuth().currentUser;
+        if (!currentUser) {
+          await clearAuthToken();
+          setStatus('auth');
+          return;
+        }
+
+        // Refresh token on launch so interceptors always use a current token.
+        const freshToken = await currentUser.getIdToken(true);
+        await setAuthToken(freshToken);
+        setStatus('main');
+      } catch (error) {
+        console.warn('[Auth] Bootstrap failed:', error);
+        await clearAuthToken();
+        setStatus('auth');
+      } finally {
+        setBootstrapping(false);
+      }
+    };
+
+    void bootstrapAuth();
+  }, [setBootstrapping, setStatus]);
+
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      setStatus('auth');
+    });
+
+    return () => {
+      setUnauthorizedHandler(null);
+    };
+  }, [setStatus]);
+
   useEffect(() => {
     if (!fontsLoaded && !fontError) return;
     void SplashScreen.hideAsync();
   }, [fontError, fontsLoaded]);
 
   if (!fontsLoaded && !fontError) return null;
+  if (isBootstrapping) return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <ThemeProvider>
-        <SafeAreaProvider>
-          <PushTokenRegistrar />
-          <RootNavigator />
-          <ThemedStatusBar />
-        </SafeAreaProvider>
-      </ThemeProvider>
+      <UserProfileProvider>
+        <ThemeProvider>
+          <SafeAreaProvider>
+            <PushTokenRegistrar />
+            <RootNavigator />
+            <ThemedStatusBar />
+          </SafeAreaProvider>
+        </ThemeProvider>
+      </UserProfileProvider>
     </GestureHandlerRootView>
   );
 }

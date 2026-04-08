@@ -47,8 +47,6 @@ export default function IncomeEstimatorScreen({ navigation }: IncomeEstimatorScr
     Alert.alert('Coming soon', 'PDF export will be available in the next update.');
   };
 
- 
-
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
 
@@ -79,7 +77,7 @@ export default function IncomeEstimatorScreen({ navigation }: IncomeEstimatorScr
 
       {/* ── SCROLLABLE SECTION (Everything else) ── */}
       <ScrollView
-        contentContainerStyle={[styles.scrollContent, {paddingBottom: tabBarHeight + vs(20)}]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: tabBarHeight + vs(20) }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl

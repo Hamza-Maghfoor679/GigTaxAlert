@@ -150,44 +150,43 @@ function TypeCard({
   });
 
   return (
-    <Animated.View
-      entering={FadeInDown.delay(delay).springify().damping(18)}
-      style={anim}
-    >
-      <Pressable
-        style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}
-        onPressIn={() => { scale.value = withSpring(0.97, { damping: 15 }); }}
-        onPressOut={() => { scale.value = withSpring(1,    { damping: 15 }); }}
-        onPress={onPress}
-      >
-        {/* Top row — emoji + text + check */}
-        <View style={styles.topRow}>
-          <View style={styles.emojiBox}>
-            <Text style={styles.emoji}>{emoji}</Text>
+    <Animated.View entering={FadeInDown.delay(delay).springify().damping(18)}>
+      <Animated.View style={anim}>
+        <Pressable
+          style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}
+          onPressIn={() => { scale.value = withSpring(0.97, { damping: 15 }); }}
+          onPressOut={() => { scale.value = withSpring(1,    { damping: 15 }); }}
+          onPress={onPress}
+        >
+          {/* Top row — emoji + text + check */}
+          <View style={styles.topRow}>
+            <View style={styles.emojiBox}>
+              <Text style={styles.emoji}>{emoji}</Text>
+            </View>
+            <View style={styles.textCol}>
+              <Text style={styles.label}>{label}</Text>
+              <Text style={styles.sub}  numberOfLines={1}>{sub}</Text>
+            </View>
+            <View style={styles.check}>
+              {selected && <Text style={styles.checkMark}>✓</Text>}
+            </View>
           </View>
-          <View style={styles.textCol}>
-            <Text style={styles.label}>{label}</Text>
-            <Text style={styles.sub}  numberOfLines={1}>{sub}</Text>
-          </View>
-          <View style={styles.check}>
-            {selected && <Text style={styles.checkMark}>✓</Text>}
-          </View>
-        </View>
 
-        {/* Relevant tax tags — shown only when selected */}
-        {selected && (
-          <Animated.View
-            entering={FadeInDown.delay(0).duration(180)}
-            style={styles.tagsRow}
-          >
-            {tags.map((t) => (
-              <View key={t} style={styles.tag}>
-                <Text style={styles.tagTxt}>{t}</Text>
-              </View>
-            ))}
-          </Animated.View>
-        )}
-      </Pressable>
+          {/* Relevant tax tags — shown only when selected */}
+          {selected && (
+            <Animated.View
+              entering={FadeInDown.delay(0).duration(180)}
+              style={styles.tagsRow}
+            >
+              {tags.map((t) => (
+                <View key={t} style={styles.tag}>
+                  <Text style={styles.tagTxt}>{t}</Text>
+                </View>
+              ))}
+            </Animated.View>
+          )}
+        </Pressable>
+      </Animated.View>
     </Animated.View>
   );
 }

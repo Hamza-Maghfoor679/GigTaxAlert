@@ -1,42 +1,63 @@
 import { useCallback, useEffect, useState } from 'react';
-import { InteractionManager, Linking } from 'react-native';
+import { Alert, Linking, Platform } from 'react-native';
+import { getAuth } from '@react-native-firebase/auth';
+import { collection, doc, getDoc, getFirestore } from '@react-native-firebase/firestore';
 
-import type { SubscriptionInfo } from '../types/settings.types';
+import type { SubscriptionState } from '../types/settings.types';
 
 type UseSubscriptionReturn = {
-  subscription:     SubscriptionInfo | null;
-  loading:          boolean;
-  openUpgrade:      () => void;
-  openManage:       () => void;
-  restorePurchases: () => Promise<void>;
+  subscription: SubscriptionState | null;
+  loading: boolean;
+  openUpgrade: () => void;
+  openManage: () => void;
+  restorePurchases: () => void;
 };
 
 export function useSubscription(): UseSubscriptionReturn {
-  const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
-  const [loading,      setLoading]      = useState(true);
+  const [subscription, setSubscription] = useState<SubscriptionState | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const fetchSubscription = useCallback(async () => {
     setLoading(true);
     try {
-      // const info = await Purchases.getCustomerInfo();
-      await new Promise((r) => setTimeout(r, 300));
-      setSubscription({ tier: 'pro', label: 'Pro Monthly', renewsAt: '2025-05-01', isTrial: false });
+      const uid = getAuth().currentUser?.uid;
+      if (!uid) {
+        setSubscription({ tier: 'free' });
+        return;
+      }
+      const firestore = getFirestore();
+      const userRef = doc(collection(firestore, 'users'), uid);
+      const snap = await getDoc(userRef);
+      const tier = snap.exists ? ((snap.data() as { subscriptionTier?: 'free' | 'pro' }).subscriptionTier ?? 'free') : 'free';
+      setSubscription({ tier });
+    } catch (error) {
+      console.error('fetchSubscription error:', error);
+      setSubscription({ tier: 'free' });
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    // ✅ Defer until animations are done — RevenueCat call is heavy
-    const task = InteractionManager.runAfterInteractions(() => {
-      void fetchSubscription();
-    });
-    return () => task.cancel();
+    void fetchSubscription();
   }, [fetchSubscription]);
 
-  const openUpgrade      = useCallback(() => void Linking.openURL('https://gigtax.app/upgrade'), []);
-  const openManage       = useCallback(() => void Linking.openURL('https://apps.apple.com/account/subscriptions'), []);
-  const restorePurchases = useCallback(async () => { await fetchSubscription(); }, [fetchSubscription]);
+  const openUpgrade = useCallback(() => {
+    Alert.alert('Upgrade', 'RevenueCat paywall coming soon');
+  }, []);
+
+  const openManage = useCallback(() => {
+    const url = Platform.OS === 'ios'
+      ? 'https://apps.apple.com/account/subscriptions'
+      : 'https://play.google.com/store/account/subscriptions';
+    void Linking.openURL(url).catch((error) => {
+      console.error('openManage error:', error);
+    });
+  }, []);
+
+  const restorePurchases = useCallback(() => {
+    Alert.alert('Restore Purchases', 'Restore flow will be connected shortly.');
+  }, []);
 
   return { subscription, loading, openUpgrade, openManage, restorePurchases };
 }

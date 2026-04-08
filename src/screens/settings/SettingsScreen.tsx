@@ -17,6 +17,8 @@ import { useSubscription } from './hooks/useSubscription';
 import { makeSettingsStyles } from './styles/SettingsStyles';
 import { useAuthStore } from '@/stores/authStore';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { getAuth } from '@react-native-firebase/auth';
+import { clearAuthToken } from '@/services/authToken';
 
 export default function SettingsScreen() {
   const colors = useThemeColors();
@@ -44,12 +46,14 @@ export default function SettingsScreen() {
         style: 'destructive',
         onPress: async () => {  // ✅ async goes here, before the arrow
           try {
-            await GoogleSignin.revokeAccess();
-            await GoogleSignin.signOut();
-            // await auth().signOut();
-            setStatus('auth');
+            await GoogleSignin.revokeAccess().catch(() => undefined);
+            await GoogleSignin.signOut().catch(() => undefined);
+            await getAuth().signOut().catch(() => undefined);
           } catch (error) {
             console.error('Sign-out error:', error);
+          } finally {
+            await clearAuthToken();
+            setStatus('auth');
           }
         },
       },

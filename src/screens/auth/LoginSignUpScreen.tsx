@@ -22,8 +22,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import * as Haptics from 'expo-haptics';
 import { useState } from 'react';
-import auth from '@react-native-firebase/auth';
-import firestore from '@react-native-firebase/firestore';
+import { getAuth, GoogleAuthProvider, signInWithCredential } from '@react-native-firebase/auth';
+import { collection, doc, getFirestore, serverTimestamp, setDoc } from '@react-native-firebase/firestore';
 
 import type { AuthStackParamList, RootStackParamList } from '@/navigation/types';
 import { getUser } from '@/services/user';
@@ -32,6 +32,7 @@ import { radius, s, ms, spacing, typography, vs, useThemeColors, useThemeMode } 
 import { useNavigation } from '@react-navigation/native';
 import { FontAwesome } from '@expo/vector-icons';
 import { useOnboardingStore } from '@/stores/useOnboardingStore';
+import { setAuthToken } from '@/services/authToken';
 
 export type LoginSignUpScreenProps = NativeStackScreenProps<AuthStackParamList, 'LoginSignUp'>;
 
@@ -176,7 +177,7 @@ export default function LoginSignUpScreen(_props: LoginSignUpScreenProps) {
     photoURL: string | null,
   ) => {
     try {
-      const userRef = firestore().collection('users').doc(uid);
+      const userRef = doc(collection(getFirestore(), 'users'), uid);
       const existing = await getUser(uid);
 
       const touch = {
@@ -185,11 +186,12 @@ export default function LoginSignUpScreen(_props: LoginSignUpScreenProps) {
         displayName,
         photoURL,
         provider: 'google' as const,
-        updatedAt: firestore.FieldValue.serverTimestamp(),
+        updatedAt: serverTimestamp(),
       };
 
       if (!existing) {
-        await userRef.set(
+        await setDoc(
+          userRef,
           {
             ...touch,
             country: country ?? null,
@@ -200,12 +202,12 @@ export default function LoginSignUpScreen(_props: LoginSignUpScreenProps) {
             fcmToken: null,
             onboardingComplete: true,
             deadlinesGeneratedYear: null,
-            createdAt: firestore.FieldValue.serverTimestamp(),
+            createdAt: serverTimestamp(),
           },
           { merge: true },
         );
       } else {
-        await userRef.set(touch, { merge: true });
+        await setDoc(userRef, touch, { merge: true });
       }
 
       clearOnboarding();
@@ -232,10 +234,12 @@ export default function LoginSignUpScreen(_props: LoginSignUpScreenProps) {
       if (!idToken) throw new Error('No ID token received from Google');
 
       // 3. Create Firebase credential from Google token
-      const googleCredential = auth.GoogleAuthProvider.credential(idToken);
+      const googleCredential = GoogleAuthProvider.credential(idToken);
 
       // 4. Sign in to Firebase with the credential
-      const userCredential = await auth().signInWithCredential(googleCredential);
+      const userCredential = await signInWithCredential(getAuth(), googleCredential);
+      const firebaseToken = await userCredential.user.getIdToken();
+      await setAuthToken(firebaseToken);
 
       setStatus('main');
 
@@ -261,27 +265,6 @@ export default function LoginSignUpScreen(_props: LoginSignUpScreenProps) {
       setLoading(false);
     }
   };
-
-  // const onSignOut = () => {
-  //   void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-  //   Alert.alert('Sign out', 'Are you sure you want to sign out?', [
-  //     { text: 'Cancel', style: 'cancel' },
-  //     {
-  //       text: 'Sign out',
-  //       style: 'destructive',
-  //       onPress: async () => {  // ✅ async goes here, before the arrow
-  //         try {
-  //           await GoogleSignin.revokeAccess();
-  //           await GoogleSignin.signOut();
-  //           await auth().signOut();
-  //           setStatus('auth');
-  //         } catch (error) {
-  //           console.error('Sign-out error:', error);
-  //         }
-  //       },
-  //     },
-  //   ]);
-  // };
 
   const styles = StyleSheet.create({
     safe: { flex: 1, backgroundColor: colors.background },

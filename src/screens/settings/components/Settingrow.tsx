@@ -1,5 +1,5 @@
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Switch } from 'react-native';
+import * as Haptics from 'expo-haptics';
+import { ActivityIndicator, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 
 import { s, vs, useThemeColors } from '@/theme';
 
@@ -14,13 +14,15 @@ type BaseProps = {
 type PressableRow = BaseProps & {
   type:     'pressable';
   value?:   string;
+  loading?: boolean;
   onPress:  () => void;
 };
 
 type ToggleRow = BaseProps & {
   type:    'toggle';
-  enabled: boolean;
-  onToggle: () => void;
+  value: boolean;
+  onToggle: (v: boolean) => void;
+  disabled?: boolean;
 };
 
 export type SettingRowProps = PressableRow | ToggleRow;
@@ -50,27 +52,36 @@ export function SettingRow(props: SettingRowProps) {
     subtitle:   { fontSize: s(10), color: colors.textSecondary, fontFamily: 'Inter_400Regular' },
     value:      { fontSize: s(13), color: colors.textSecondary, fontFamily: 'Inter_400Regular' },
     chevron:    { fontSize: s(20), color: colors.textDisabled, lineHeight: s(24) },
+    disabled:   { opacity: 0.5 },
   });
 
   const content = (
-    <View style={styles.row}>
+    <View style={[styles.row, props.type === 'toggle' && props.disabled && styles.disabled]}>
       <View style={[styles.iconBox, { backgroundColor: props.iconBg }]}>
         <Text style={styles.iconTxt}>{props.emoji}</Text>
       </View>
       <View style={styles.content}>
         <Text style={styles.label}>{props.label}</Text>
         {props.subtitle && <Text style={styles.subtitle}>{props.subtitle}</Text>}
-        {props.type === 'pressable' && props.value && (
+        {props.type === 'pressable' && props.value ? (
           <Text style={styles.value}>{props.value}</Text>
-        )}
+        ) : null}
       </View>
       {props.type === 'toggle' ? (
         <Switch
-          value={props.enabled}
-          onValueChange={props.onToggle}
+          value={props.value}
+          disabled={props.disabled}
+          onValueChange={(value) => {
+            void Haptics.selectionAsync();
+            props.onToggle(value);
+          }}
           trackColor={{ false: colors.border, true: colors.primary }}
           thumbColor={'#FFF'}
         />
+      ) : props.loading ? (
+        <ActivityIndicator size="small" color={colors.primary} />
+      ) : props.value ? (
+        <Text style={styles.value}>{props.value}</Text>
       ) : (
         <Text style={styles.chevron}>›</Text>
       )}
@@ -80,7 +91,13 @@ export function SettingRow(props: SettingRowProps) {
   return (
     <>
       {props.type === 'pressable' ? (
-        <TouchableOpacity onPress={props.onPress} activeOpacity={0.7}>
+        <TouchableOpacity
+          onPress={() => {
+            void Haptics.selectionAsync();
+            props.onPress();
+          }}
+          activeOpacity={0.75}
+        >
           {content}
         </TouchableOpacity>
       ) : (

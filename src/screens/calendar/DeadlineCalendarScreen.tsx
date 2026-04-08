@@ -1,21 +1,21 @@
 import * as Haptics from 'expo-haptics';
 import { useMemo, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { useRefresh } from '@/hooks/useRefresh';
 import { radius, s, spacing, typography, vs, useThemeColors } from '@/theme';
 import { Deadline } from '@/components/ui/homeComponents/deadline.types';
 import { DeadlineDetailSheet } from '@/components/ui/homeComponents/DeadlineDetailSheet';
-import { CalendarDeadlineList, CategoryFilterPills, MonthCalendar } from './components/index';
+import { CategoryFilterPills, DeadlineCard, MonthCalendar } from './components/index';
 import { useCalendarDeadlines } from './hooks/useCalendarDeadlines';
 import { FilterCategory } from './types/calendar.types';
 import { buildMarkedDates, deadlinesForMonth } from './utils/calendarHelpers';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const todayKey    = new Date().toISOString().slice(0, 10);       // YYYY-MM-DD
+const todayKey = new Date().toISOString().slice(0, 10);       // YYYY-MM-DD
 const currentMonth = new Date().toISOString().slice(0, 7);       // YYYY-MM
 
 const toMonthLabel = (key: string): string =>
@@ -25,14 +25,15 @@ const toMonthLabel = (key: string): string =>
 
 export default function DeadlineCalendarScreen() {
   const colors = useThemeColors();
-  const styles = createStyles(colors);
+  const insets = useSafeAreaInsets();
+  const styles = createStyles(colors, insets.bottom);
 
   const { deadlines, loading, refetch, toggleComplete } = useCalendarDeadlines();
   const { refreshing, onRefresh } = useRefresh(refetch);
 
-  const [selectedDate,  setSelectedDate]  = useState<string>(todayKey);
-  const [visibleMonth,  setVisibleMonth]  = useState<string>(currentMonth);
-  const [filter,        setFilter]        = useState<FilterCategory>('all');
+  const [selectedDate, setSelectedDate] = useState<string>(todayKey);
+  const [visibleMonth, setVisibleMonth] = useState<string>(currentMonth);
+  const [filter, setFilter] = useState<FilterCategory>('all');
   const [sheetDeadline, setSheetDeadline] = useState<Deadline | null>(null);
 
   // ── Derived ───────────────────────────────────────────────────────────────
@@ -58,18 +59,7 @@ export default function DeadlineCalendarScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => void onRefresh()}
-            tintColor={colors.primary}
-            colors={[colors.primary]}
-          />
-        }
-      >
+      <View style={styles.content}>
         {/* ── Header ── */}
         <Animated.View entering={FadeIn.delay(0).duration(200)} style={styles.header}>
           <View style={styles.headerLeft}>
@@ -116,10 +106,13 @@ export default function DeadlineCalendarScreen() {
             />
           )}
         </Animated.View>
+        <Text style={styles.monthHeader}>
+          {toMonthLabel(visibleMonth)} — {monthDeadlines.length} deadline{monthDeadlines.length === 1 ? '' : 's'}
+        </Text>
 
-        {/* ── Month deadline list ── */}
+        {/* ── Month deadline list (only scrollable area) ── */}
         {loading ? (
-          <View style={{ gap: vs(8), marginTop: vs(8) }}>
+          <View style={styles.loadingList}>
             {[0, 1, 2].map((i) => (
               <Skeleton
                 key={i}
@@ -131,14 +124,41 @@ export default function DeadlineCalendarScreen() {
             ))}
           </View>
         ) : (
-          <CalendarDeadlineList
-            deadlines={monthDeadlines}
-            monthLabel={toMonthLabel(visibleMonth)}
-            onCardPress={(d) => setSheetDeadline(d)}
-            onToggleComplete={toggleComplete}
+          <FlatList
+            data={monthDeadlines}
+            keyExtractor={(item) => item.id}
+            style={styles.deadlinesList}
+            contentContainerStyle={styles.deadlinesListContent}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={() => void onRefresh()}
+                tintColor={colors.primary}
+                colors={[colors.primary]}
+              />
+            }
+            ListEmptyComponent={
+              <View style={styles.empty}>
+                <Text style={styles.emptyEmoji}>🧾</Text>
+                <Text style={styles.emptyTitle}>No deadlines this month</Text>
+                <Text style={styles.emptyText}>
+                  You are clear for now. New dates appear as your tax cycle updates.
+                </Text>
+              </View>
+            }
+            renderItem={({ item, index }) => (
+              <Animated.View entering={FadeIn.delay(index * 40).duration(220)}>
+                <DeadlineCard
+                  deadline={item}
+                  onCardPress={(d) => setSheetDeadline(d)}
+                  onToggleComplete={toggleComplete}
+                />
+              </Animated.View>
+            )}
           />
         )}
-      </ScrollView>
+      </View>
 
       {/* ── Detail bottom sheet ── */}
       <DeadlineDetailSheet
@@ -149,10 +169,10 @@ export default function DeadlineCalendarScreen() {
   );
 }
 
-const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
+const createStyles = (colors: ReturnType<typeof useThemeColors>, bottomInset: number) =>
   StyleSheet.create({
     safe: { flex: 1, backgroundColor: colors.background },
-    scrollContent: { paddingTop: vs(6), paddingBottom: vs(40), gap: vs(6) },
+    content: { flex: 1, paddingTop: vs(6), gap: vs(6) },
     header: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -176,4 +196,26 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>) =>
     calendarWrapper: {
       marginHorizontal: spacing.md,
     },
+    monthHeader: {
+      ...typography.h3,
+      color: colors.textPrimary,
+      paddingHorizontal: spacing.md,
+      marginBottom: vs(10),
+      marginTop: vs(12),
+    },
+    loadingList: {
+      gap: vs(8),
+      marginTop: vs(8),
+      paddingBottom: vs(24),
+    },
+    deadlinesList: {
+      flex: 1,
+    },
+    deadlinesListContent: {
+      paddingBottom: vs(24) + bottomInset + vs(40),
+    },
+    empty: { alignItems: 'center', paddingVertical: vs(28), gap: vs(6) },
+    emptyEmoji: { fontSize: s(34) },
+    emptyTitle: { ...typography.bodyMedium, color: colors.textPrimary, fontWeight: '700' },
+    emptyText: { ...typography.bodySmall, color: colors.textSecondary },
   });

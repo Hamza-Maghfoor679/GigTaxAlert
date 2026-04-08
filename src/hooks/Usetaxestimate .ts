@@ -1,98 +1,89 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { getAuth } from '@react-native-firebase/auth';
+import { collection, doc, getDocs, getFirestore, limit, orderBy, query } from '@react-native-firebase/firestore';
 
-import { TaxEstimate } from '@/components/ui/homeComponents/deadline.types';
+import type { TaxEstimate } from '@/components/ui/homeComponents/deadline.types';
+import { useUserProfile } from '@/context/UserProfileContext';
 
-type UseTaxEstimateReturn = {
-  estimate: TaxEstimate | null;
-  loading: boolean;
-  error: string | null;
-  refetch: () => Promise<void>;
+type EstimateDoc = {
+  quarterlyOwed?: number;
+  amount?: number;
+  currency?: 'USD' | 'GBP' | 'EUR' | string;
+  period?: string;
 };
 
-/**
- * useTaxEstimate
- *
- * Fetches the user's latest quarterly income entry + their country's
- * tax rate from the profile to compute an estimated tax owed figure.
- *
- * Returns:
- * - `estimate`  → null for free users (isPro: false) or when no income data exists
- * - `loading`   → true during initial fetch
- * - `error`     → error message string if fetch fails
- * - `refetch`   → manually re-trigger the fetch (e.g. after new income entry)
- *
- * Data sources (wire to your Supabase client):
- * - `income_entries`  → latest quarter rows for the current user
- * - `profiles`        → tax_rate, is_pro flag, currency
- * - `deadline_rules`  → next quarterly deadline title + due date
- *
- * @example
- * const { estimate, loading } = useTaxEstimate();
- * <TaxEstimateWidget estimate={estimate} onPress={...} />
- */
-export function useTaxEstimate(): UseTaxEstimateReturn {
+export function useTaxEstimate(): { estimate: TaxEstimate | null } {
   const [estimate, setEstimate] = useState<TaxEstimate | null>(null);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState<string | null>(null);
-
-  const fetchEstimate = async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      // ── 1. Fetch user profile (isPro flag, taxRate, currency) ──────────
-      // const { data: profile } = await supabase
-      //   .from('profiles')
-      //   .select('is_pro, tax_rate, currency')
-      //   .single();
-
-      // ── 2. If not Pro → return locked estimate and bail early ──────────
-      // if (!profile?.is_pro) {
-      //   setEstimate({ amountDue: 0, currency: 'USD', dueDate: '', deadlineTitle: '', isPro: false });
-      //   return;
-      // }
-
-      // ── 3. Fetch latest quarter's income entries ────────────────────────
-      // const quarterStart = getQuarterStart(); // from your dateHelpers
-      // const { data: incomeRows } = await supabase
-      //   .from('income_entries')
-      //   .select('amount')
-      //   .gte('entry_date', quarterStart.toISOString());
-
-      // ── 4. Sum income and apply tax rate ───────────────────────────────
-      // const totalIncome = incomeRows?.reduce((sum, r) => sum + r.amount, 0) ?? 0;
-      // const amountDue   = totalIncome * (profile.tax_rate / 100);
-
-      // ── 5. Fetch next deadline for this quarter ────────────────────────
-      // const { data: nextRule } = await supabase
-      //   .from('deadline_rules')
-      //   .select('name, due_date')
-      //   .eq('category', 'quarterly')
-      //   .gte('due_date', new Date().toISOString())
-      //   .order('due_date', { ascending: true })
-      //   .limit(1)
-      //   .single();
-
-      // ── TODO: replace mock below with the real queries above ───────────
-      const mock: TaxEstimate = {
-        amountDue:     1240,
-        currency:      'USD',
-        dueDate:       'Apr 15, 2025',
-        deadlineTitle: 'Q1 Estimated Tax',
-        isPro:         true,       // flip to false to test locked state
-      };
-
-      setEstimate(mock);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load tax estimate');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { subscriptionTier, country } = useUserProfile();
+  const mounted = useRef(true);
 
   useEffect(() => {
-    void fetchEstimate();
+    return () => {
+      mounted.current = false;
+    };
   }, []);
 
-  return { estimate, loading, error, refetch: fetchEstimate };
+  useEffect(() => {
+    const loadEstimate = async () => {
+      if (subscriptionTier === null || country === null) {
+        if (!mounted.current) return;
+        setEstimate(null);
+        return;
+      }
+
+      if (subscriptionTier !== 'pro') {
+        if (!mounted.current) return;
+        setEstimate(null);
+        return;
+      }
+
+      const uid = getAuth().currentUser?.uid;
+      if (!uid) {
+        if (!mounted.current) return;
+        setEstimate(null);
+        return;
+      }
+
+      try {
+        const db = getFirestore();
+        const estimatesRef = collection(doc(collection(db, 'users'), uid), 'estimates');
+        const latestEstimateQuery = query(estimatesRef, orderBy('createdAt', 'desc'), limit(1));
+        const snap = await getDocs(latestEstimateQuery);
+
+        if (snap.empty) {
+          if (!mounted.current) return;
+          setEstimate(null);
+          return;
+        }
+
+        const latest = snap.docs[0].data() as EstimateDoc;
+        const rawAmount = latest.quarterlyOwed ?? latest.amount ?? 0;
+        const currency = latest.currency;
+
+        if (currency !== 'USD' && currency !== 'GBP' && currency !== 'EUR') {
+          if (!mounted.current) return;
+          setEstimate(null);
+          return;
+        }
+
+        const mapped: TaxEstimate = {
+          quarterlyOwed: Math.round(rawAmount),
+          currency,
+          period: latest.period ?? '',
+          isEstimate: true,
+        };
+
+        if (!mounted.current) return;
+        setEstimate(mapped);
+      } catch (error) {
+        console.error('[useTaxEstimate] fetch failed:', error);
+        if (!mounted.current) return;
+        setEstimate(null);
+      }
+    };
+
+    void loadEstimate();
+  }, [country, subscriptionTier]);
+
+  return { estimate };
 }

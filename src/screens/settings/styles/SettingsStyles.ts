@@ -1,92 +1,54 @@
 import { StyleSheet } from 'react-native';
 
-import { radius, s, spacing, typography, vs } from '@/theme';
-import type { Colors } from '@/theme';
+import { radius, s, spacing, typography, useThemeColors, vs } from '@/theme';
 
-export const makeSettingsStyles = (colors: Colors) =>
+export const makeSettingsStyles = (colors: ReturnType<typeof useThemeColors>) =>
   StyleSheet.create({
-    // ── Layout ────────────────────────────────────────────────────────────
-    safe:          { flex: 1, backgroundColor: colors.background },
+    safe: { flex: 1, backgroundColor: colors.background },
     scrollContent: { paddingBottom: vs(48) },
-
-    // ── Header ────────────────────────────────────────────────────────────
-    header:      { paddingHorizontal: spacing.md, paddingTop: vs(8), paddingBottom: vs(20) },
+    header: { paddingHorizontal: spacing.md, paddingTop: vs(8), paddingBottom: vs(20) },
     headerTitle: { ...typography.h1, color: colors.textPrimary },
-    headerSub:   { ...typography.bodySmall, color: colors.textSecondary, marginTop: vs(2) },
-
-    // ── Avatar card ───────────────────────────────────────────────────────
+    headerSub: { ...typography.bodySmall, color: colors.textSecondary, marginTop: vs(2) },
     avatarCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: s(12),
+      backgroundColor: colors.surface,
+      borderRadius: radius.xl,
+      padding: spacing.md,
+      borderWidth: 1,
+      borderColor: colors.border,
       marginHorizontal: spacing.md,
-      marginBottom:     vs(24),
-      backgroundColor:  colors.surface,
-      borderRadius:     radius.xl,
-      borderWidth:      1,
-      borderColor:      colors.border,
-      padding:          spacing.md,
-      flexDirection:    'row',
-      alignItems:       'center',
-      gap:              s(14),
+      marginBottom: vs(24),
     },
     avatar: {
-      width:           s(56),
-      height:          s(56),
-      borderRadius:    radius.full,
-      backgroundColor: colors.primary,
-      alignItems:      'center',
-      justifyContent:  'center',
+      width: s(48),
+      height: vs(48),
+      backgroundColor: colors.primaryLight,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: radius.full,
     },
-    avatarText:  { ...typography.h2, color: '#FFF' },
-    avatarName:  { ...typography.labelLarge, color: colors.textPrimary },
+    avatarText: { fontFamily: 'Inter_700Bold', fontSize: s(18), color: colors.primary },
+    avatarName: { ...typography.labelLarge, color: colors.textPrimary },
     avatarEmail: { ...typography.bodySmall,  color: colors.textSecondary, marginTop: vs(2) },
-
-    // ── Section ───────────────────────────────────────────────────────────
     sectionLabel: {
-      ...typography.labelSmall,
-      color:           colors.textSecondary,
-      textTransform:   'uppercase',
-      letterSpacing:   1,
-      paddingHorizontal: spacing.md,
-      marginBottom:    vs(8),
-      marginTop:       vs(4),
+      fontFamily: 'Inter_600SemiBold',
+      fontSize: s(12),
+      color: colors.textSecondary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.8,
+      marginHorizontal: spacing.md,
+      marginBottom: vs(8),
+      marginTop: vs(4),
     },
     sectionCard: {
+      backgroundColor: colors.surface,
+      borderRadius: radius.xl,
+      borderWidth: 1,
+      borderColor: colors.border,
       marginHorizontal: spacing.md,
-      marginBottom:     vs(10),
-      backgroundColor:  colors.surface,
-      borderRadius:     radius.xl,
-      borderWidth:      1,
-      borderColor:      colors.border,
-      overflow:         'hidden',
-    },
-
-    // ── Setting row ───────────────────────────────────────────────────────
-    row: {
-      flexDirection:     'row',
-      alignItems:        'center',
-      paddingHorizontal: s(16),
-      paddingVertical:   vs(14),
-      gap:               s(8),
-    },
-    rowDivider: { height: 1, backgroundColor: colors.border, marginLeft: s(52) },
-    rowIconBox: {
-      width:           s(36),
-      height:          s(36),
-      borderRadius:    radius.md,
-      alignItems:      'center',
-      justifyContent:  'center',
-    },
-    rowIcon:    { fontSize: s(18) },
-    rowContent: { flex: 1, gap: vs(2) },
-    rowLabel:   { ...typography.labelSmall, color: colors.textPrimary },
-    rowSub:     { ...typography.bodySmall,  color: colors.textSecondary },
-    rowValue:   { ...typography.bodySmall,  color: colors.textSecondary },
-    rowChevron: { ...typography.h3, color: colors.textDisabled },
-
-    // ── Skeleton ──────────────────────────────────────────────────────────
-    skeletonCard: {
-      marginHorizontal: spacing.md,
-      marginBottom:     vs(20),
-      borderRadius:     radius.xl,
-      overflow:         'hidden',
+      marginBottom: vs(20),
+      overflow: 'hidden',
     },
   });

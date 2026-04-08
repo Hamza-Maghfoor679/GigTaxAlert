@@ -47,19 +47,18 @@ export function ScaleCard({
   const onPressOut = () => { scale.value = withTiming(1, timing); };
 
   return (
-    <Animated.View
-      entering={FadeIn.delay(delay).duration(200)}
-      style={[animStyle, style]}
-    >
-      <TouchableOpacity
-        onPress={onPress}
-        onPressIn={onPressIn}
-        onPressOut={onPressOut}
-        activeOpacity={1}
-        disabled={!onPress}
-      >
-        {children}
-      </TouchableOpacity>
+    <Animated.View entering={FadeIn.delay(delay).duration(200)} style={style}>
+      <Animated.View style={animStyle}>
+        <TouchableOpacity
+          onPress={onPress}
+          onPressIn={onPressIn}
+          onPressOut={onPressOut}
+          activeOpacity={1}
+          disabled={!onPress}
+        >
+          {children}
+        </TouchableOpacity>
+      </Animated.View>
     </Animated.View>
   );
 }

@@ -86,27 +86,26 @@ function CountryCard({
   });
 
   return (
-    <Animated.View
-      entering={FadeInDown.delay(delay).springify().damping(18)}
-      style={anim}
-    >
-      <Pressable
-        style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}
-        onPressIn={() => { scale.value = withSpring(0.97, { damping: 15 }); }}
-        onPressOut={() => { scale.value = withSpring(1,    { damping: 15 }); }}
-        onPress={onPress}
-      >
-        <View style={styles.flagBox}>
-          <Text style={styles.flag}>{flag}</Text>
-        </View>
-        <View style={styles.content}>
-          <Text style={styles.name}>{name}</Text>
-          <Text style={styles.sub}>{sub}</Text>
-        </View>
-        <View style={styles.check}>
-          {selected && <Text style={styles.checkMark}>✓</Text>}
-        </View>
-      </Pressable>
+    <Animated.View entering={FadeInDown.delay(delay).springify().damping(18)}>
+      <Animated.View style={anim}>
+        <Pressable
+          style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}
+          onPressIn={() => { scale.value = withSpring(0.97, { damping: 15 }); }}
+          onPressOut={() => { scale.value = withSpring(1,    { damping: 15 }); }}
+          onPress={onPress}
+        >
+          <View style={styles.flagBox}>
+            <Text style={styles.flag}>{flag}</Text>
+          </View>
+          <View style={styles.content}>
+            <Text style={styles.name}>{name}</Text>
+            <Text style={styles.sub}>{sub}</Text>
+          </View>
+          <View style={styles.check}>
+            {selected && <Text style={styles.checkMark}>✓</Text>}
+          </View>
+        </Pressable>
+      </Animated.View>
     </Animated.View>
   );
 }

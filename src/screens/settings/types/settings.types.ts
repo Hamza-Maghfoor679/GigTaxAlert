@@ -1,54 +1,31 @@
-// ─── Profile ──────────────────────────────────────────────────────────────────
+export type CountryCode = 'US' | 'UK' | 'DE' | 'FR' | 'NL';
 
-export type FreelanceType =
-  | 'designer'
-  | 'developer'
-  | 'writer'
-  | 'consultant'
-  | 'photographer'
-  | 'marketer'
-  | 'other';
-
-export type SubscriptionTier = 'free' | 'pro' | 'pro_annual';
+export type FreelanceType = 'developer' | 'designer' | 'writer' | 'consultant' | 'creator' | 'other';
 
 export type UserProfile = {
-  id:               string;
-  displayName:      string;
-  email:            string;
-  country:          string;       // ISO-3166 alpha-2, e.g. "US"
-  countryLabel:     string;       // e.g. "United States"
-  freelanceType:    FreelanceType;
-  subscriptionTier: SubscriptionTier;
-  avatarInitials:   string;
+  displayName: string;
+  email: string;
+  avatarInitials: string;
+  country: CountryCode;
+  countryLabel: string;
+  freelanceType: FreelanceType;
 };
 
-// ─── Notification preferences ─────────────────────────────────────────────────
-
-export type NotificationCategory =
-  | 'estimated_tax'
-  | 'vat'
-  | 'self_assessment'
-  | 'quarterly'
-  | 'reminders';
-
-export type NotificationPreferences = Record<NotificationCategory, boolean> & {
+export type NotificationPrefs = {
   globalEnabled: boolean;
+  categories: {
+    quarterly: boolean;
+    income_tax: boolean;
+    self_employment: boolean;
+    vat: boolean;
+    other: boolean;
+  };
 };
 
-// ─── Subscription ─────────────────────────────────────────────────────────────
+export type CategoryKey = keyof NotificationPrefs['categories'];
 
-export type SubscriptionInfo = {
-  tier:          SubscriptionTier;
-  label:         string;       // "Free" | "Pro" | "Pro Annual"
-  renewsAt?:     string;       // ISO date string
-  isTrial:       boolean;
-  trialEndsAt?:  string;
-};
-
-// ─── Country / freelance option shapes ───────────────────────────────────────
-
-export type SelectOption = {
-  value: string;
-  label: string;
-  flag?: string;
+export type SubscriptionState = {
+  tier: 'free' | 'pro';
+  expiresAt?: Date | null;
+  isLifetime?: boolean;
 };

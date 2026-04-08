@@ -1,12 +1,20 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert } from 'react-native';
+import { getAuth } from '@react-native-firebase/auth';
 import {
-  EstimatorFormState,
-  IncomeEntry,
-  Quarter,
-  QuarterSummary,
-} from '../types/estimator.types';
-import { calcTaxBreakdown, safeToSpend } from '../utils/taxCalculator';
+  addDoc,
+  collection,
+  getDocs,
+  getFirestore,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where,
+} from '@react-native-firebase/firestore';
+
+import { useUserProfile } from '@/context/UserProfileContext';
+import type { EstimatorFormState, Quarter, QuarterSummary, TaxBreakdown } from '../types/estimator.types';
+import { calculateBreakdown } from '../utils/calculateBreakdown';
 
 const QUARTERS: Quarter[] = ['Q1', 'Q2', 'Q3', 'Q4'];
 
@@ -24,128 +32,245 @@ type UseIncomeEstimatorReturn = {
   setQuarter: (q: Quarter) => void;
   setYear: (y: number) => void;
   form: EstimatorFormState;
-  setForm: (f: Partial<EstimatorFormState>) => void;
+  setForm: (partial: Partial<EstimatorFormState>) => void;
   saveEntry: () => Promise<void>;
   isSaving: boolean;
-  breakdown: ReturnType<typeof calcTaxBreakdown>;
+  breakdown: TaxBreakdown;
   safeAmount: number;
   quarterSummaries: QuarterSummary[];
   loading: boolean;
-  error: string | null;
 };
 
 export function useIncomeEstimator(): UseIncomeEstimatorReturn {
-  const year = new Date().getFullYear();
+  const { country } = useUserProfile();
+  const selectedCountry = country ?? 'US';
   const [selectedQuarter, setQuarter] = useState<Quarter>(currentQuarter());
-  const [selectedYear, setYear] = useState<number>(year);
-  const [entries, setEntries] = useState<IncomeEntry[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [selectedYear, setYear] = useState<number>(new Date().getFullYear());
+  const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
+  const [quarterSummaries, setQuarterSummaries] = useState<QuarterSummary[]>(
+    QUARTERS.map((quarter) => ({
+      quarter,
+      year: new Date().getFullYear(),
+      grossIncome: 0,
+      estimatedTax: 0,
+      hasData: false,
+      savedAt: null,
+    })),
+  );
+  const mounted = useRef(true);
   const [form, setFormState] = useState<EstimatorFormState>({
     grossIncome: '',
     deductions: '',
   });
 
   useEffect(() => {
-    const entry = entries.find(
-      (e) => e.quarter === selectedQuarter && e.year === selectedYear,
-    );
-    setFormState({
-      grossIncome: entry ? String(entry.grossIncome) : '',
-      deductions: entry ? String(entry.deductions) : '',
-    });
-  }, [selectedQuarter, selectedYear, entries]);
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   const setForm = useCallback((partial: Partial<EstimatorFormState>) => {
     setFormState((prev) => ({ ...prev, ...partial }));
   }, []);
 
-  const breakdown = useMemo(
-    () => calcTaxBreakdown(form.grossIncome, form.deductions),
-    [form.grossIncome, form.deductions],
-  );
+  const breakdown = useMemo(() => {
+    const calculated = calculateBreakdown(
+      parseFloat(form.grossIncome) || 0,
+      parseFloat(form.deductions) || 0,
+      selectedCountry,
+    );
+    return {
+      ...calculated,
+      period: `${selectedQuarter} ${selectedYear}`,
+    };
+  }, [form.grossIncome, form.deductions, selectedCountry, selectedQuarter, selectedYear]);
 
-  const safeAmount = useMemo(
-    () => safeToSpend(breakdown.grossIncome, breakdown.totalOwed),
-    [breakdown.grossIncome, breakdown.totalOwed],
-  );
+  const safeAmount = useMemo(() => {
+    return Math.max(0, Math.round(breakdown.grossIncome - breakdown.totalOwed));
+  }, [breakdown.grossIncome, breakdown.totalOwed]);
 
-  const quarterSummaries: QuarterSummary[] = useMemo(
-    () =>
-      QUARTERS.map((q) => {
-        const entry = entries.find((e) => e.quarter === q && e.year === selectedYear);
-        if (!entry) return { quarter: q, grossIncome: 0, estimatedTax: 0, hasData: false };
-
-        const { totalOwed } = calcTaxBreakdown(
-          String(entry.grossIncome),
-          String(entry.deductions),
-        );
-        return {
-          quarter: q,
-          grossIncome: entry.grossIncome,
-          estimatedTax: totalOwed,
-          hasData: true,
-        };
-      }),
-    [entries, selectedYear],
-  );
-
-  const fetchEntries = useCallback(async () => {
-    setLoading(true);
-    try {
-      await new Promise((r) => setTimeout(r, 400));
-      setEntries([
-        {
-          id: '1',
-          quarter: 'Q1',
+  const loadSelectedQuarterAndYear = useCallback(async () => {
+    const uid = getAuth().currentUser?.uid;
+    if (!uid) {
+      if (!mounted.current) return;
+      setFormState({ grossIncome: '', deductions: '' });
+      setQuarterSummaries(
+        QUARTERS.map((quarter) => ({
+          quarter,
           year: selectedYear,
-          grossIncome: 8500,
-          deductions: 1200,
-          savedAt: new Date().toISOString(),
-        },
+          grossIncome: 0,
+          estimatedTax: 0,
+          hasData: false,
+          savedAt: null,
+        })),
+      );
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const db = getFirestore();
+      const estimatesRef = collection(db, 'users', uid, 'estimates');
+
+      const selectedQuarterQuery = query(
+        estimatesRef,
+        where('quarter', '==', selectedQuarter),
+        where('year', '==', selectedYear),
+      );
+      const yearQuery = query(estimatesRef, where('year', '==', selectedYear));
+
+      const [selectedQuarterSnap, yearSnap] = await Promise.all([
+        getDocs(selectedQuarterQuery),
+        getDocs(yearQuery),
       ]);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load entries');
+
+      if (!mounted.current) return;
+
+      const selectedDoc = selectedQuarterSnap.docs[0]?.data() as
+        | { grossIncome?: number; deductions?: number }
+        | undefined;
+
+      setFormState({
+        grossIncome:
+          selectedDoc && typeof selectedDoc.grossIncome === 'number'
+            ? String(Math.round(selectedDoc.grossIncome))
+            : '',
+        deductions:
+          selectedDoc && typeof selectedDoc.deductions === 'number'
+            ? String(Math.round(selectedDoc.deductions))
+            : '',
+      });
+
+      const summaryByQuarter = new Map<Quarter, QuarterSummary>();
+      yearSnap.docs.forEach((docSnap) => {
+        const data = docSnap.data() as {
+          quarter?: string;
+          grossIncome?: number;
+          totalOwed?: number;
+          createdAt?: { toDate?: () => Date };
+        };
+        if (
+          data.quarter !== 'Q1' &&
+          data.quarter !== 'Q2' &&
+          data.quarter !== 'Q3' &&
+          data.quarter !== 'Q4'
+        ) {
+          return;
+        }
+        const savedAt = data.createdAt?.toDate ? data.createdAt.toDate() : null;
+        const gross = Math.round(data.grossIncome ?? 0);
+        const owed = Math.round(data.totalOwed ?? 0);
+        summaryByQuarter.set(data.quarter, {
+          quarter: data.quarter,
+          year: selectedYear,
+          grossIncome: gross,
+          estimatedTax: owed,
+          hasData: true,
+          savedAt,
+        });
+      });
+
+      setQuarterSummaries(
+        QUARTERS.map((quarter) => {
+          const existing = summaryByQuarter.get(quarter);
+          if (existing) return existing;
+          return {
+            quarter,
+            year: selectedYear,
+            grossIncome: 0,
+            estimatedTax: 0,
+            hasData: false,
+            savedAt: null,
+          };
+        }),
+      );
+    } catch (error) {
+      console.error('[useIncomeEstimator] load failed:', error);
+      if (!mounted.current) return;
+      setFormState({ grossIncome: '', deductions: '' });
+      setQuarterSummaries(
+        QUARTERS.map((quarter) => ({
+          quarter,
+          year: selectedYear,
+          grossIncome: 0,
+          estimatedTax: 0,
+          hasData: false,
+          savedAt: null,
+        })),
+      );
     } finally {
+      if (!mounted.current) return;
       setLoading(false);
     }
-  }, [selectedYear]);
+  }, [selectedQuarter, selectedYear]);
 
   useEffect(() => {
-    void fetchEntries();
-  }, [fetchEntries]);
+    if (!mounted.current) return;
+    setLoading(true);
+    void loadSelectedQuarterAndYear();
+  }, [loadSelectedQuarterAndYear]);
 
   const saveEntry = useCallback(async () => {
+    const uid = getAuth().currentUser?.uid;
+    if (!uid) return;
+
+    const grossIncome = parseFloat(form.grossIncome) || 0;
+    if (grossIncome <= 0) {
+      Alert.alert('Enter your gross income first.');
+      return;
+    }
+
     setIsSaving(true);
     try {
-      const gross = parseFloat(form.grossIncome) || 0;
-      const deduct = parseFloat(form.deductions) || 0;
-      await new Promise((r) => setTimeout(r, 500));
+      const db = getFirestore();
+      const estimatesRef = collection(db, 'users', uid, 'estimates');
+      const existingQuery = query(
+        estimatesRef,
+        where('quarter', '==', selectedQuarter),
+        where('year', '==', selectedYear),
+      );
+      const existingSnap = await getDocs(existingQuery);
 
-      setEntries((prev) => {
-        const filtered = prev.filter(
-          (e) => !(e.quarter === selectedQuarter && e.year === selectedYear),
-        );
-        return [
-          ...filtered,
-          {
-            id: Date.now().toString(),
-            quarter: selectedQuarter,
-            year: selectedYear,
-            grossIncome: gross,
-            deductions: deduct,
-            savedAt: new Date().toISOString(),
-          },
-        ];
-      });
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to save entry');
+      const deductions = parseFloat(form.deductions) || 0;
+      const netIncome = Math.round(grossIncome - deductions);
+      const estimateDoc = {
+        quarter: selectedQuarter,
+        year: selectedYear,
+        grossIncome: Math.round(grossIncome),
+        deductions: Math.round(deductions),
+        netIncome,
+        totalOwed: Math.round(breakdown.totalOwed),
+        country: selectedCountry,
+        updatedAt: serverTimestamp(),
+      };
+
+      if (!existingSnap.empty) {
+        await updateDoc(existingSnap.docs[0].ref, estimateDoc);
+      } else {
+        await addDoc(estimatesRef, {
+          ...estimateDoc,
+          createdAt: serverTimestamp(),
+        });
+      }
+
+      await loadSelectedQuarterAndYear();
+    } catch (error) {
+      console.error('[useIncomeEstimator] saveEntry failed:', error);
+      Alert.alert('Save Failed', 'Could not save entry. Try again.');
     } finally {
+      if (!mounted.current) return;
       setIsSaving(false);
     }
-  }, [form, selectedQuarter, selectedYear]);
+  }, [
+    breakdown.totalOwed,
+    form.deductions,
+    form.grossIncome,
+    loadSelectedQuarterAndYear,
+    selectedCountry,
+    selectedQuarter,
+    selectedYear,
+  ]);
 
   return {
     selectedQuarter,
@@ -160,6 +285,5 @@ export function useIncomeEstimator(): UseIncomeEstimatorReturn {
     safeAmount,
     quarterSummaries,
     loading,
-    error,
   };
 }

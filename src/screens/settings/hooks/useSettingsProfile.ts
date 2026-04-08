@@ -1,75 +1,139 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { InteractionManager } from 'react-native';
+import { getAuth } from '@react-native-firebase/auth';
+import {
+  collection,
+  doc,
+  getFirestore,
+  onSnapshot,
+  serverTimestamp,
+  updateDoc,
+} from '@react-native-firebase/firestore';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import type { FreelanceType, UserProfile } from '../types/settings.types';
-import { getCountryLabel } from '../utils/settingsHelpers';
+import type { CountryCode, FreelanceType, UserProfile } from '../types/settings.types';
+import { COUNTRY_LABELS, getInitials } from '../utils/settingsHelpers';
 
 type UseSettingsProfileReturn = {
-  profile:             UserProfile | null;
-  loading:             boolean;
-  isSaving:            boolean;
-  error:               string | null;
-  updateCountry:       (country: string) => Promise<void>;
-  updateFreelanceType: (type: FreelanceType) => Promise<void>;
+  profile: UserProfile | null;
+  loading: boolean;
+  isSaving: boolean;
+  updateCountry: (country: string) => void;
+  updateFreelanceType: (type: string) => void;
 };
 
 export function useSettingsProfile(): UseSettingsProfileReturn {
-  const [profile,  setProfile]  = useState<UserProfile | null>(null);
-  const [loading,  setLoading]  = useState(true);
+  const [rawProfile, setRawProfile] = useState<{
+    displayName: string;
+    email: string;
+    country: CountryCode;
+    freelanceType: FreelanceType;
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [error,    setError]    = useState<string | null>(null);
-
-  const fetchProfile = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      // const { data } = await supabase.from('profiles').select('*').single();
-      await new Promise((r) => setTimeout(r, 400));
-      setProfile({
-        id: 'user-123', displayName: 'John Doe', email: 'john@example.com',
-        country: 'US', countryLabel: 'United States', freelanceType: 'developer',
-        subscriptionTier: 'pro', avatarInitials: 'JD',
-      });
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load profile');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
   useEffect(() => {
-    // ✅ Defer fetch until all mount animations have finished
-    const task = InteractionManager.runAfterInteractions(() => {
-      void fetchProfile();
-    });
-    return () => task.cancel();
-  }, [fetchProfile]);
-
-  const updateCountry = useCallback(async (country: string) => {
-    if (!profile) return;
-    setIsSaving(true);
-    try {
-      await new Promise((r) => setTimeout(r, 600));
-      setProfile((prev) => prev ? { ...prev, country, countryLabel: getCountryLabel(country) } : prev);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to update country');
-    } finally {
-      setIsSaving(false);
+    const uid = getAuth().currentUser?.uid;
+    if (!uid) {
+      setRawProfile(null);
+      setLoading(false);
+      return;
     }
-  }, [profile]);
 
-  const updateFreelanceType = useCallback(async (freelanceType: FreelanceType) => {
-    if (!profile) return;
+    const firestore = getFirestore();
+    const userRef = doc(collection(firestore, 'users'), uid);
+    const unsubscribe = onSnapshot(
+      userRef,
+      (snapshot) => {
+        if (!snapshot.exists) {
+          setRawProfile(null);
+          setLoading(false);
+          return;
+        }
+        const data = snapshot.data() as {
+          displayName?: string;
+          email?: string;
+          country?: CountryCode;
+          freelanceType?: FreelanceType;
+        };
+        setRawProfile({
+          displayName: data.displayName ?? 'GigTax User',
+          email: data.email ?? '',
+          country: data.country ?? 'US',
+          freelanceType: data.freelanceType ?? 'other',
+        });
+        setLoading(false);
+      },
+      (error) => {
+        console.error('useSettingsProfile snapshot error:', error);
+        setLoading(false);
+      },
+    );
+
+    return unsubscribe;
+  }, []);
+
+  const profile = useMemo<UserProfile | null>(() => {
+    if (!rawProfile) return null;
+    return {
+      displayName: rawProfile.displayName,
+      email: rawProfile.email,
+      avatarInitials: getInitials(rawProfile.displayName),
+      country: rawProfile.country,
+      countryLabel: COUNTRY_LABELS[rawProfile.country],
+      freelanceType: rawProfile.freelanceType,
+    };
+  }, [rawProfile]);
+
+  const updateCountry = useCallback((country: string) => {
+    const uid = getAuth().currentUser?.uid;
+    if (!uid) return;
+    if (!rawProfile) return;
+    const nextCountry = country as CountryCode;
+
+    setRawProfile((prev) => (prev ? { ...prev, country: nextCountry } : prev));
     setIsSaving(true);
-    try {
-      await new Promise((r) => setTimeout(r, 400));
-      setProfile((prev) => prev ? { ...prev, freelanceType } : prev);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to update freelance type');
-    } finally {
-      setIsSaving(false);
-    }
-  }, [profile]);
 
-  return { profile, loading, isSaving, error, updateCountry, updateFreelanceType };
+    const run = async () => {
+      try {
+        const firestore = getFirestore();
+        const userRef = doc(collection(firestore, 'users'), uid);
+        await updateDoc(userRef, {
+          country: nextCountry,
+          updatedAt: serverTimestamp(),
+        });
+      } catch (error) {
+        console.error('updateCountry error:', error);
+      } finally {
+        setIsSaving(false);
+      }
+    };
+    void run();
+  }, [rawProfile]);
+
+  const updateFreelanceType = useCallback((freelanceType: string) => {
+    const uid = getAuth().currentUser?.uid;
+    if (!uid) return;
+    if (!rawProfile) return;
+    const nextType = freelanceType as FreelanceType;
+
+    setRawProfile((prev) => (prev ? { ...prev, freelanceType: nextType } : prev));
+    setIsSaving(true);
+
+    const run = async () => {
+      try {
+        const firestore = getFirestore();
+        const userRef = doc(collection(firestore, 'users'), uid);
+        await updateDoc(userRef, {
+          freelanceType: nextType,
+          updatedAt: serverTimestamp(),
+        });
+      } catch (error) {
+        console.error('updateFreelanceType error:', error);
+      } finally {
+        setIsSaving(false);
+      }
+    };
+    void run();
+  }, [rawProfile]);
+
+  return { profile, loading, isSaving, updateCountry, updateFreelanceType };
 }

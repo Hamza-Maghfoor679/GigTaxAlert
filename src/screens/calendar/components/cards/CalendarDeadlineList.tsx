@@ -5,14 +5,143 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import { CATEGORY_META } from '@/constants/deadlineCategories';
 import { Deadline } from '@/components/ui/homeComponents/deadline.types';
 import { radius, s, spacing, typography, vs, useThemeColors } from '@/theme';
-import { addToDeviceCalendar } from '../../utils';
 
 type Props = {
   deadlines: Deadline[];
   monthLabel: string;
   onCardPress: (deadline: Deadline) => void;
-  onToggleComplete: (id: string, current: boolean) => void;
+  onToggleComplete: (id: string) => void;
 };
+
+type DeadlineCardProps = {
+  deadline: Deadline;
+  onCardPress: (deadline: Deadline) => void;
+  onToggleComplete: (id: string) => void;
+};
+
+const formatDueDate = (dueDate: Deadline['dueDate']): string => {
+  const date = dueDate instanceof Date ? dueDate : new Date(dueDate);
+  return Number.isNaN(date.getTime())
+    ? String(dueDate)
+    : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+};
+
+const getDaysChip = (daysLeft: number, colors: ReturnType<typeof useThemeColors>) => {
+  if (daysLeft <= 0) {
+    return {
+      label: daysLeft === 0 ? 'Due today!' : 'Overdue',
+      backgroundColor: `${colors.danger}1A`,
+      textColor: colors.danger,
+    };
+  }
+
+  if (daysLeft <= 7) {
+    return {
+      label: `${daysLeft} days`,
+      backgroundColor: `${colors.warning}1A`,
+      textColor: colors.warning,
+    };
+  }
+
+  return {
+    label: `${daysLeft} days`,
+    backgroundColor: colors.primaryLight,
+    textColor: colors.primary,
+  };
+};
+
+export function DeadlineCard({ deadline, onCardPress, onToggleComplete }: DeadlineCardProps) {
+  const colors = useThemeColors();
+  const category = deadline.category ?? 'other';
+  const meta = CATEGORY_META[category] ?? CATEGORY_META.other;
+  const isCompleted = Boolean(deadline.completed ?? deadline.isCompleted ?? deadline.isComplete);
+  const daysChip = getDaysChip(deadline.daysLeft, colors);
+
+  const styles = StyleSheet.create({
+    card: {
+      marginHorizontal: spacing.md,
+      marginBottom: vs(8),
+      backgroundColor: colors.surface,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      flexDirection: 'row',
+      overflow: 'hidden',
+      shadowColor: '#000',
+      shadowOpacity: 0.07,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 3 },
+      elevation: 3,
+    },
+    colorBar: { width: s(4), backgroundColor: meta.color(colors) },
+    cardBody: { flex: 1, padding: s(12), gap: vs(6) },
+    topRow: { flexDirection: 'row', alignItems: 'center', gap: s(8), flexWrap: 'wrap' },
+    title: { ...typography.labelLarge, color: colors.textPrimary, flex: 1 },
+    titleDone: { color: colors.textDisabled, textDecorationLine: 'line-through' },
+    pill: { paddingHorizontal: s(7), paddingVertical: vs(2), borderRadius: radius.full },
+    pillText: { ...typography.caption, fontWeight: '600' },
+    bottomRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    dueDate: { ...typography.bodySmall, color: colors.textSecondary },
+    daysChip: {
+      borderRadius: radius.full,
+      paddingHorizontal: s(10),
+      paddingVertical: vs(3),
+      backgroundColor: daysChip.backgroundColor,
+    },
+    daysChipText: {
+      ...typography.labelSmall,
+      color: daysChip.textColor,
+      fontWeight: '700',
+    },
+    check: {
+      width: s(24),
+      height: s(24),
+      borderRadius: radius.full,
+      backgroundColor: colors.secondary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    checkMark: { ...typography.bodySmall, color: '#FFF', fontWeight: '700' },
+  });
+
+  return (
+    <TouchableOpacity
+      style={styles.card}
+      onPress={() => {
+        void Haptics.selectionAsync();
+        onCardPress(deadline);
+      }}
+      onLongPress={() => {
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        onToggleComplete(deadline.id);
+      }}
+      activeOpacity={0.82}
+    >
+      <View style={styles.colorBar} />
+      <View style={styles.cardBody}>
+        <View style={styles.topRow}>
+          <Text style={[styles.title, isCompleted && styles.titleDone]} numberOfLines={1}>
+            {deadline.title}
+          </Text>
+          {isCompleted && (
+            <View style={styles.check}>
+              <Text style={styles.checkMark}>✓</Text>
+            </View>
+          )}
+          <View style={[styles.pill, { backgroundColor: meta.bg(colors) }]}>
+            <Text style={[styles.pillText, { color: meta.color(colors) }]}>{meta.label}</Text>
+          </View>
+        </View>
+        <View style={styles.bottomRow}>
+          <Text style={styles.dueDate}>{formatDueDate(deadline.dueDate)}</Text>
+          <View style={styles.daysChip}>
+            <Text style={styles.daysChipText}>{daysChip.label}</Text>
+          </View>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+}
 
 export function CalendarDeadlineList({ deadlines, monthLabel, onCardPress, onToggleComplete }: Props) {
   const colors = useThemeColors();
@@ -26,127 +155,31 @@ export function CalendarDeadlineList({ deadlines, monthLabel, onCardPress, onTog
     },
     empty: { alignItems: 'center', paddingVertical: vs(28), gap: vs(6) },
     emptyEmoji: { fontSize: s(34) },
-    emptyText: { ...typography.bodyMedium, color: colors.textSecondary },
-    card: {
-      marginHorizontal: spacing.md,
-      marginBottom: vs(8),
-      backgroundColor: colors.surface,
-      borderRadius: radius.lg,
-      borderWidth: 1,
-      borderColor: colors.border,
-      flexDirection: 'row',
-      overflow: 'hidden',
-    },
-    colorBar: { width: s(4) },
-    cardBody: { flex: 1, padding: s(12), gap: vs(6) },
-    topRow: { flexDirection: 'row', alignItems: 'center', gap: s(8), flexWrap: 'wrap' },
-    title: { ...typography.labelLarge, color: colors.textPrimary, flex: 1 },
-    pill: { paddingHorizontal: s(7), paddingVertical: vs(2), borderRadius: radius.full },
-    pillText: { ...typography.caption, fontWeight: '600' },
-    bottomRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    dueDate: { ...typography.bodySmall, color: colors.textSecondary },
-    calBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: s(4),
-      paddingHorizontal: s(10),
-      paddingVertical: vs(4),
-      borderRadius: radius.full,
-      borderWidth: 1,
-      borderColor: `${colors.primary}40`,
-      backgroundColor: colors.primaryLight,
-    },
-    calBtnText: { ...typography.caption, color: colors.primary, fontWeight: '600' },
-    actions: {
-      paddingVertical: vs(12),
-      paddingHorizontal: s(12),
-      alignItems: 'center',
-      justifyContent: 'space-between',
-    },
-    checkBtn: {
-      width: s(28),
-      height: s(28),
-      borderRadius: radius.full,
-      borderWidth: 2,
-      borderColor: colors.border,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    checkBtnDone: { borderColor: colors.secondary, backgroundColor: colors.secondary },
-    checkMark: { ...typography.bodySmall, color: '#FFF', fontWeight: '700' },
-    chevron: { ...typography.h3, color: colors.textDisabled },
+    emptyTitle: { ...typography.bodyMedium, color: colors.textPrimary, fontWeight: '700' },
+    emptyText: { ...typography.bodySmall, color: colors.textSecondary },
   });
+
+  const header = `${monthLabel} — ${deadlines.length} deadline${deadlines.length === 1 ? '' : 's'}`;
 
   return (
     <>
-      <Text style={styles.header}>{monthLabel}</Text>
+      <Text style={styles.header}>{header}</Text>
       {deadlines.length === 0 ? (
         <View style={styles.empty}>
-          <Text style={styles.emptyEmoji}>🗓️</Text>
-          <Text style={styles.emptyText}>No deadlines this month</Text>
+          <Text style={styles.emptyEmoji}>🧾</Text>
+          <Text style={styles.emptyTitle}>No deadlines this month</Text>
+          <Text style={styles.emptyText}>You are clear for now. New dates appear as your tax cycle updates.</Text>
         </View>
       ) : (
-        deadlines.map((d, i) => {
-          const meta = CATEGORY_META[d.category];
-          return (
-            <Animated.View key={d.id} entering={FadeIn.delay(Math.min(i * 24, 120)).duration(200)}>
-              <TouchableOpacity
-                style={styles.card}
-                onPress={() => {
-                  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  onCardPress(d);
-                }}
-                activeOpacity={0.75}
-              >
-                <View style={[styles.colorBar, { backgroundColor: meta.color(colors) }]} />
-                <View style={styles.cardBody}>
-                  <View style={styles.topRow}>
-                    <Text
-                      style={[
-                        styles.title,
-                        d.isCompleted && { color: colors.textDisabled, textDecorationLine: 'line-through' },
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {d.title}
-                    </Text>
-                    <View style={[styles.pill, { backgroundColor: meta.bg(colors) }]}>
-                      <Text style={[styles.pillText, { color: meta.color(colors) }]}>{meta.label}</Text>
-                    </View>
-                  </View>
-                  <View style={styles.bottomRow}>
-                    <Text style={styles.dueDate}>{d.isCompleted ? 'Completed' : `Due ${d.dueDate}`}</Text>
-                    {!d.isCompleted && (
-                      <TouchableOpacity
-                        style={styles.calBtn}
-                        onPress={() => {
-                          void Haptics.selectionAsync();
-                          void addToDeviceCalendar(d);
-                        }}
-                        activeOpacity={0.8}
-                      >
-                        <Text style={styles.calBtnText}>+ Calendar</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                </View>
-                <View style={styles.actions}>
-                  <TouchableOpacity
-                    style={[styles.checkBtn, d.isCompleted && styles.checkBtnDone]}
-                    onPress={() => {
-                      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      onToggleComplete(d.id, d.isCompleted);
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    {d.isCompleted && <Text style={styles.checkMark}>✓</Text>}
-                  </TouchableOpacity>
-                  {!d.isCompleted && <Text style={styles.chevron}>›</Text>}
-                </View>
-              </TouchableOpacity>
-            </Animated.View>
-          );
-        })
+        deadlines.map((deadline, i) => (
+          <Animated.View key={deadline.id} entering={FadeIn.delay(i * 40).duration(220)}>
+            <DeadlineCard
+              deadline={deadline}
+              onCardPress={onCardPress}
+              onToggleComplete={onToggleComplete}
+            />
+          </Animated.View>
+        ))
       )}
     </>
   );

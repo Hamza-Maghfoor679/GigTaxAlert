@@ -16,14 +16,19 @@ export const buildMarkedDates = (
   const map: MarkedDates = {};
 
   for (const d of filtered) {
-    const dateKey = d.dueDate.slice(0, 10);
+    const dateKey = String(d.dueDate).slice(0, 10);
     if (!map[dateKey]) map[dateKey] = { dots: [] };
 
-    const meta = CATEGORY_META[d.category];
-    const color = d.isCompleted ? colors.textDisabled : meta.color(colors);
-    const alreadyHas = map[dateKey].dots.some((dot) => dot.key === d.category);
-    if (!alreadyHas) map[dateKey].dots.push({ key: d.category, color });
+    const category = d.category ?? 'other';
+    const meta = CATEGORY_META[category] ?? CATEGORY_META.other;
+    const color = d.completed ? colors.textDisabled : meta.color(colors);
+    const alreadyHas = map[dateKey].dots.some((dot) => dot.key === category);
+    if (!alreadyHas) map[dateKey].dots.push({ key: category, color });
   }
+
+  const todayKey = new Date().toISOString().slice(0, 10);
+  if (!map[todayKey]) map[todayKey] = { dots: [] };
+  map[todayKey].todayTextColor = colors.primary;
 
   if (selectedDate) {
     if (!map[selectedDate]) map[selectedDate] = { dots: [] };
@@ -38,10 +43,20 @@ export const deadlinesForMonth = (
   deadlines: Deadline[],
   monthKey: string,
   filter: FilterCategory,
-): Deadline[] =>
-  deadlines.filter(
-    (d) => d.dueDate.startsWith(monthKey) && (filter === 'all' || d.category === filter),
-  );
+): Deadline[] => {
+  const filtered = deadlines.filter((deadline) => {
+    const inMonth = String(deadline.dueDate).startsWith(monthKey);
+    const inFilter = filter === 'all' || deadline.category === filter;
+    return inMonth && inFilter;
+  });
+
+  return filtered.sort((a, b) => {
+    if (a.completed !== b.completed) return a.completed ? 1 : -1;
+    if (a.daysLeft < 0 && b.daysLeft >= 0) return -1;
+    if (a.daysLeft >= 0 && b.daysLeft < 0) return 1;
+    return new Date(String(a.dueDate)).getTime() - new Date(String(b.dueDate)).getTime();
+  });
+};
 
 export const addToDeviceCalendar = async (deadline: Deadline): Promise<void> => {
   const { status } = await Calendar.requestCalendarPermissionsAsync();

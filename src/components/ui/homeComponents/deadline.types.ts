@@ -1,5 +1,3 @@
-// ─── Deadline domain ─────────────────────────────────────────────────────────
-
 export type DeadlineCategory =
   | 'income_tax'
   | 'self_employment'
@@ -8,25 +6,37 @@ export type DeadlineCategory =
   | 'vat'
   | 'other';
 
-export type Deadline = {
+export type DeadlineType = 'quarterly' | 'annual' | 'vat' | 'self-assessment';
+export type UrgencyLevel = 'safe' | 'warning' | 'critical';
+
+export interface Deadline {
   id: string;
   title: string;
-  dueDate: string;       // ISO string  e.g. "2025-04-15"
+  dueDate: Date | string;
   daysLeft: number;
-  category: DeadlineCategory;
-  description: string;   // plain-English explainer
-  penaltyInfo: string;   // what happens if missed
-  paymentUrl: string;    // how to pay
-  isCompleted: boolean;
-  completedAt?: string;  // ISO string
-};
-
-// ─── Tax estimate domain ──────────────────────────────────────────────────────
+  type: string;
+  category?: DeadlineCategory;
+  description: string;
+  penaltyInfo?: string;
+  paymentUrl?: string;
+  completed?: boolean;
+  country?: string;
+  urgency?: UrgencyLevel;
+  // Compatibility fields while calendar + home surfaces converge.
+  isCompleted?: boolean;
+  isComplete?: boolean;
+}
 
 export type TaxEstimate = {
-  amountDue: number;
-  currency: string;       // e.g. "USD"
-  dueDate: string;        // ISO string
-  deadlineTitle: string;  // e.g. "Q1 Estimated Tax"
-  isPro: boolean;
+  quarterlyOwed: number;
+  currency: 'USD' | 'GBP' | 'EUR';
+  period: string;
+  isEstimate: true;
+};
+
+export type TaxEstimate = {
+  quarterlyOwed: number;
+  currency: 'USD' | 'GBP' | 'EUR';
+  period: string;
+  isEstimate: true;
 };

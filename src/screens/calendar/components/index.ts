@@ -1,3 +1,3 @@
 export { CategoryFilterPills } from './sections/CategoryFilterPills';
 export { MonthCalendar } from './sections/MonthCalendar';
-export { CalendarDeadlineList } from './cards/CalendarDeadlineList';
+export { CalendarDeadlineList, DeadlineCard } from './cards/CalendarDeadlineList';

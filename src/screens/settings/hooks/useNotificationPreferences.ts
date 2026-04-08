@@ -1,66 +1,114 @@
 import { useCallback, useEffect, useState } from 'react';
-import { InteractionManager } from 'react-native';
-import * as Notifications from 'expo-notifications';
+import { getAuth } from '@react-native-firebase/auth';
+import {
+  collection,
+  doc,
+  getFirestore,
+  onSnapshot,
+  serverTimestamp,
+  setDoc,
+} from '@react-native-firebase/firestore';
 
-import type { NotificationCategory, NotificationPreferences } from '../types/settings.types';
+import type { CategoryKey, NotificationPrefs } from '../types/settings.types';
 
-const DEFAULT_PREFS: NotificationPreferences = {
-    globalEnabled: true, estimated_tax: true, vat: true,
-    self_assessment: true, quarterly: true, reminders: true,
+const DEFAULT_PREFS: NotificationPrefs = {
+  globalEnabled: true,
+  categories: {
+    quarterly: true,
+    income_tax: true,
+    self_employment: true,
+    vat: true,
+    other: true,
+  },
 };
 
 type UseNotificationPreferencesReturn = {
-    prefs: NotificationPreferences;
-    permissionStatus: Notifications.PermissionStatus | null;
-    isSaving: boolean;
-    toggleGlobal: () => Promise<void>;
-    toggleCategory: (category: NotificationCategory) => Promise<void>;
+  prefs: NotificationPrefs;
+  isSaving: boolean;
+  toggleGlobal: (value: boolean) => void;
+  toggleCategory: (category: CategoryKey, value: boolean) => void;
 };
 
-
 export function useNotificationPreferences(): UseNotificationPreferencesReturn {
-    const [prefs, setPrefs] = useState<NotificationPreferences>(DEFAULT_PREFS);
-    const [permissionStatus, setPermissionStatus] = useState<Notifications.PermissionStatus | null>(null);
-    const [isSaving, setIsSaving] = useState(false);
+  const [prefs, setPrefs] = useState<NotificationPrefs>(DEFAULT_PREFS);
+  const [isSaving, setIsSaving] = useState(false);
 
-    useEffect(() => {
-        // ✅ Native bridge call — defer until after animations
-        const task = InteractionManager.runAfterInteractions(() => {
-            Notifications.getPermissionsAsync()
-                .then(({ status }) => setPermissionStatus(status))
-                .catch(() => { });
+  useEffect(() => {
+    const uid = getAuth().currentUser?.uid;
+    if (!uid) return;
 
-            // TODO: load prefs from Supabase here too
+    const firestore = getFirestore();
+    const prefsRef = doc(collection(doc(collection(firestore, 'users'), uid), 'notificationPrefs'), 'settings');
+    const unsubscribe = onSnapshot(
+      prefsRef,
+      (snapshot) => {
+        if (!snapshot.exists) {
+          setPrefs(DEFAULT_PREFS);
+          return;
+        }
+        const data = snapshot.data() as Partial<NotificationPrefs>;
+        setPrefs({
+          globalEnabled: data.globalEnabled ?? true,
+          categories: {
+            quarterly: data.categories?.quarterly ?? true,
+            income_tax: data.categories?.income_tax ?? true,
+            self_employment: data.categories?.self_employment ?? true,
+            vat: data.categories?.vat ?? true,
+            other: data.categories?.other ?? true,
+          },
         });
-        return () => task.cancel();
-    }, []);
+      },
+      (error) => {
+        console.error('notificationPrefs snapshot error:', error);
+      },
+    );
+    return unsubscribe;
+  }, []);
 
-    const savePrefs = async (updated: NotificationPreferences) => {
-        setIsSaving(true);
-        try {
-            // await supabase.from('notification_preferences').upsert({ ...updated });
-            await new Promise((r) => setTimeout(r, 300));
-        } finally {
-            setIsSaving(false);
-        }
+  const persist = useCallback((nextPrefs: NotificationPrefs) => {
+    const uid = getAuth().currentUser?.uid;
+    if (!uid) return;
+
+    setPrefs(nextPrefs);
+    setIsSaving(true);
+
+    const run = async () => {
+      try {
+        const firestore = getFirestore();
+        const prefsRef = doc(collection(doc(collection(firestore, 'users'), uid), 'notificationPrefs'), 'settings');
+        await setDoc(
+          prefsRef,
+          {
+            ...nextPrefs,
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true },
+        );
+      } catch (error) {
+        console.error('notificationPrefs persist error:', error);
+      } finally {
+        setIsSaving(false);
+      }
     };
+    void run();
+  }, []);
 
-    const toggleGlobal = useCallback(async () => {
-        if (!prefs.globalEnabled) {
-            const { status } = await Notifications.requestPermissionsAsync();
-            setPermissionStatus(status);
-            if (status !== 'granted') return;
-        }
-        const updated = { ...prefs, globalEnabled: !prefs.globalEnabled };
-        setPrefs(updated);
-        await savePrefs(updated);
-    }, [prefs]);
+  const toggleGlobal = useCallback((value: boolean) => {
+    persist({
+      ...prefs,
+      globalEnabled: value,
+    });
+  }, [persist, prefs]);
 
-    const toggleCategory = useCallback(async (category: NotificationCategory) => {
-        const updated = { ...prefs, [category]: !prefs[category] };
-        setPrefs(updated);
-        await savePrefs(updated);
-    }, [prefs]);
+  const toggleCategory = useCallback((category: CategoryKey, value: boolean) => {
+    persist({
+      ...prefs,
+      categories: {
+        ...prefs.categories,
+        [category]: value,
+      },
+    });
+  }, [persist, prefs]);
 
-    return { prefs, permissionStatus, isSaving, toggleGlobal, toggleCategory };
+  return { prefs, isSaving, toggleGlobal, toggleCategory };
 }
