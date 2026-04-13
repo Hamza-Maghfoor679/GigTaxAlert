@@ -1,18 +1,18 @@
-import { useCallback, type ViewStyle } from 'react';
-import { Alert, View } from 'react-native';
+import { useCallback } from 'react';
+import { Alert, type StyleProp, View, type ViewStyle } from 'react-native';
 
 import { useThemeColors } from '@/theme';
-import { COUNTRY_LABELS, COUNTRY_OPTIONS, FREELANCE_OPTIONS } from '../utils/settingsHelpers';
+import type { CountryCode, FreelanceType } from '../types/settings.types';
 import { SettingRow } from './Settingrow';
 
 type Props = {
-  country: string;
+  country: CountryCode;
   countryLabel: string;
-  freelanceType: string;
+  freelanceType: FreelanceType;
   isSaving: boolean;
-  sectionCardStyle: ViewStyle;
-  onCountryChange: (code: string) => void;
-  onFreelanceChange: (type: string) => void;
+  sectionCardStyle: StyleProp<ViewStyle>;
+  onCountryChange: (code: CountryCode) => Promise<void>;
+  onFreelanceChange: (type: FreelanceType) => Promise<void>;
 };
 
 /**
@@ -30,26 +30,29 @@ export function ProfileSection({
   const colors = useThemeColors();
 
   const openCountryPicker = useCallback(() => {
-    Alert.alert('Country', 'Select your tax country', [
-      ...COUNTRY_OPTIONS.map((option) => ({
-        text: `${option.flag} ${COUNTRY_LABELS[option.code]}`,
-        onPress: () => onCountryChange(option.code),
-      })),
+    Alert.alert('Country', 'Choose your country', [
+      { text: 'United States', onPress: () => { void onCountryChange('US'); } },
+      { text: 'United Kingdom', onPress: () => { void onCountryChange('UK'); } },
+      { text: 'Germany', onPress: () => { void onCountryChange('DE'); } },
+      { text: 'France', onPress: () => { void onCountryChange('FR'); } },
+      { text: 'Netherlands', onPress: () => { void onCountryChange('NL'); } },
       { text: 'Cancel', style: 'cancel' },
     ]);
   }, [onCountryChange]);
 
   const openFreelancePicker = useCallback(() => {
-    Alert.alert('Freelance Type', 'Select your work type', [
-      ...FREELANCE_OPTIONS.map((option) => ({
-        text: option.label,
-        onPress: () => onFreelanceChange(option.value),
-      })),
+    Alert.alert('Freelance Type', 'Choose your freelance type', [
+      { text: 'Developer', onPress: () => { void onFreelanceChange('developer'); } },
+      { text: 'Designer', onPress: () => { void onFreelanceChange('designer'); } },
+      { text: 'Writer', onPress: () => { void onFreelanceChange('writer'); } },
+      { text: 'Consultant', onPress: () => { void onFreelanceChange('consultant'); } },
+      { text: 'Creator', onPress: () => { void onFreelanceChange('creator'); } },
+      { text: 'Other', onPress: () => { void onFreelanceChange('other'); } },
       { text: 'Cancel', style: 'cancel' },
     ]);
   }, [onFreelanceChange]);
 
-  const selectedFreelance = FREELANCE_OPTIONS.find((option) => option.value === freelanceType);
+  const freelanceLabel = freelanceType.charAt(0).toUpperCase() + freelanceType.slice(1);
 
   return (
     <View style={sectionCardStyle}>
@@ -58,6 +61,7 @@ export function ProfileSection({
         emoji="🌍"
         iconBg={colors.primary + '20'}
         label="Country"
+        subtitle="Used to calculate your tax deadlines"
         value={countryLabel || country}
         loading={isSaving}
         onPress={openCountryPicker}
@@ -66,9 +70,10 @@ export function ProfileSection({
       <SettingRow
         type="pressable"
         emoji="💼"
-        iconBg={colors.warning + '20'}
-        label="Freelance Type"
-        value={selectedFreelance?.label ?? freelanceType}
+        iconBg={colors.secondary + '20'}
+        label="Freelance type"
+        subtitle="Helps personalise your reminders"
+        value={freelanceLabel}
         loading={isSaving}
         onPress={openFreelancePicker}
       />

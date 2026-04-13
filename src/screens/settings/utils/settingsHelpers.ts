@@ -27,7 +27,7 @@ export const FREELANCE_OPTIONS: { value: FreelanceType; label: string }[] = [
 
 export const getInitials = (name: string): string => {
   const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return 'U';
-  if (parts.length === 1) return parts[0]![0]!.toUpperCase();
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
   return `${parts[0]![0]!.toUpperCase()}${parts[1]![0]!.toUpperCase()}`;
 };

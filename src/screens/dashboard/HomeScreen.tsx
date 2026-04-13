@@ -2,7 +2,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as Haptics from 'expo-haptics';
 import { useCallback, useMemo, useState } from 'react';
-import { Alert, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -34,7 +34,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   const colors = useThemeColors();
   const st = useMemo(() => homeStyles(colors), [colors]);
 
-  const { deadlines, refetch, loading, toggleComplete } = useDeadlines();
+  const { deadlines, refetch, loading, error, toggleComplete } = useDeadlines();
   const { estimate } = useTaxEstimate();
   const { displayName } = useUserProfile();
   const { refreshing, onRefresh } = useRefresh(refetch);
@@ -55,6 +55,11 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
     }
     return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
   }, [displayName]);
+  const headerDisplayName = useMemo(() => {
+    const normalized = (displayName ?? '').trim();
+    if (!normalized) return 'GigTax Alert';
+    return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+  }, [displayName]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -63,8 +68,8 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
   const handleToggleComplete = useCallback((id: string) => toggleComplete(id), [toggleComplete]);
   const handleSeeAll = useCallback(() => {
     void Haptics.selectionAsync();
-    Alert.alert('Wait for a little while understanding the flow');
-  }, []);
+    navigation.navigate('AllDeadlines');
+  }, [navigation]);
 
   const styles = useMemo(
     () =>
@@ -96,7 +101,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
           />
         }
       >
-        {loading && !deadlines ? (
+        {loading && deadlines.length === 0 ? (
           <HomeSkeleton st={st} />
         ) : (
           <>
@@ -104,7 +109,7 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
             <Animated.View entering={FadeIn.delay(0).duration(200)} style={st.header}>
               <View>
                 <Text style={st.greeting}>{getGreeting()}</Text>
-                <Text style={st.headerTitle}>GigTax Alert</Text>
+                <Text style={st.headerTitle}>{headerDisplayName}</Text>
               </View>
               <View style={st.headerRight}>
 
@@ -146,6 +151,11 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
             </Animated.View>
 
             <View style={styles.cardGap}>
+              {error ? (
+                <Text style={{ ...typography.bodySmall, color: colors.danger, marginBottom: vs(8) }}>
+                  {error.message}
+                </Text>
+              ) : null}
               {upcoming.length === 0 ? (
                 <Animated.View entering={FadeIn.delay(240).duration(200)} style={styles.emptyBox}>
                   <Text style={styles.emptyEmoji}>🎉</Text>

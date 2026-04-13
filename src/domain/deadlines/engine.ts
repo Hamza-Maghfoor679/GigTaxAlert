@@ -4,8 +4,7 @@ import { FR_RULES } from '@/constants/deadlines/FR';
 import { NL_RULES } from '@/constants/deadlines/NL';
 import { UK_RULES } from '@/constants/deadlines/UK';
 import { US_RULES } from '@/constants/deadlines/US';
-
-type SupportedCountry = 'US' | 'GB' | 'DE' | 'FR' | 'NL';
+import { toSupportedDeadlineCountry, type SupportedDeadlineCountry } from '@/utils/countryCodes';
 
 type RawRule = {
   id?: string;
@@ -30,7 +29,7 @@ export type GeneratedDeadline = {
   isComplete: boolean;
 };
 
-const RULES_BY_COUNTRY: Partial<Record<SupportedCountry, unknown>> = {
+const RULES_BY_COUNTRY: Partial<Record<SupportedDeadlineCountry, unknown>> = {
   US: US_RULES,
   GB: UK_RULES,
   DE: DE_RULES,
@@ -68,9 +67,14 @@ function ruleApplies(rule: RawRule, _freelanceType: FreelanceType): boolean {
   return appliesTo.includes('all');
 }
 
-function normalizeRules(country: SupportedCountry): RawRule[] {
+function normalizeRules(country: SupportedDeadlineCountry): RawRule[] {
   const raw = RULES_BY_COUNTRY[country];
-  if (!Array.isArray(raw)) return [];
+  if (!Array.isArray(raw)) {
+    if (__DEV__) {
+      console.warn(`[deadlineEngine] rules for ${country} are not an array; skipping generation.`);
+    }
+    return [];
+  }
   return raw as RawRule[];
 }
 
@@ -79,14 +83,22 @@ export function generateDeadlinesForYear(
   freelanceType: FreelanceType,
   taxYear: number,
 ): GeneratedDeadline[] {
-  const countryRules = normalizeRules(country as SupportedCountry);
+  const supportedCountry = toSupportedDeadlineCountry(country);
+  if (!supportedCountry) {
+    if (__DEV__) {
+      console.warn(`[deadlineEngine] unsupported country "${country}"`);
+    }
+    return [];
+  }
+
+  const countryRules = normalizeRules(supportedCountry);
 
   return countryRules
     .filter((rule) => rule?.due?.month && rule?.due?.day && ruleApplies(rule, freelanceType))
     .map((rule, index) => {
       const dueDate = toIsoDate(taxYear, Number(rule.due?.month), Number(rule.due?.day));
       return {
-        id: rule.id ?? `${country.toLowerCase()}-${taxYear}-${index}`,
+        id: rule.id ?? `${supportedCountry.toLowerCase()}-${taxYear}-${index}`,
         title: rule.name ?? 'Tax deadline',
         dueDate,
         daysLeft: daysUntil(dueDate),

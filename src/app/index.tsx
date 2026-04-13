@@ -10,10 +10,8 @@ import {
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useEffect } from 'react';
-
 import { RootNavigator } from '@/navigation/RootNavigator';
 import { ThemeProvider, useThemeMode } from '@/theme';
-import { useExpoPushToken } from '@/hooks/useExpoPushNotifications';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { UserProfileProvider } from '@/context/UserProfileContext';
 import { getAuth } from '@react-native-firebase/auth';
@@ -30,28 +28,6 @@ const GOOGLE_WEB_CLIENT_ID =
 function ThemedStatusBar() {
   const { isDark } = useThemeMode();
   return <StatusBar style={isDark ? 'light' : 'dark'} />;
-}
-
-// ─── Push token registrar (side-effect only, renders nothing) ─────────────────
-
-function PushTokenRegistrar() {
-  const { token, error } = useExpoPushToken();
-
-  useEffect(() => {
-    if (!token) return;
-    // TODO: save to Supabase after auth is wired up
-    // void supabase
-    //   .from('profiles')
-    //   .update({ expo_push_token: token })
-    //   .eq('id', currentUserId);
-    console.log('[Push] Token registered:', token);
-  }, [token]);
-
-  useEffect(() => {
-    if (error) console.warn('[Push] Registration error:', error);
-  }, [error]);
-
-  return null;
 }
 
 // ─── App ──────────────────────────────────────────────────────────────────────
@@ -75,6 +51,17 @@ export default function App() {
     });
   }, []);
 
+  // const checkToken = async () => {
+  //   const userInfo = await GoogleSignin.signIn();
+  //   const idToken = userInfo.data?.idToken;
+  //   console.log('idTokennnnnnnnn>>>>>>', idToken);
+  // }
+
+  // useEffect(() => {
+  //   void checkToken();
+  // }, []);
+
+
   const setStatus = useAuthStore((s) => s.setStatus);
   const setBootstrapping = useAuthStore((s) => s.setBootstrapping);
   const isBootstrapping = useAuthStore((s) => s.isBootstrapping);
@@ -83,6 +70,9 @@ export default function App() {
     const bootstrapAuth = async () => {
       try {
         const token = await getAuthToken();
+        // const {idToken} = await GoogleSignin.signIn();
+
+
         if (!token) {
           setStatus('auth');
           return;
@@ -134,7 +124,6 @@ export default function App() {
       <UserProfileProvider>
         <ThemeProvider>
           <SafeAreaProvider>
-            <PushTokenRegistrar />
             <RootNavigator />
             <ThemedStatusBar />
           </SafeAreaProvider>

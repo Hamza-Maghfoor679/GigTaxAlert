@@ -73,7 +73,8 @@
           "iosDisplayInForeground": true
         }
       ],
-      "@react-native-google-signin/google-signin"
+      "@react-native-google-signin/google-signin",
+      "expo-sharing"
     ],
     "extra": {
       "eas": {

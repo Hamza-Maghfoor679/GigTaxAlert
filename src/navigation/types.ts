@@ -1,3 +1,5 @@
+import type { NavigatorScreenParams } from '@react-navigation/native';
+
 export type AuthStackParamList = {
   Welcome: undefined;
   LoginSignUp: undefined;
@@ -8,6 +10,7 @@ export type AuthStackParamList = {
 export type DashboardStackParamList = {
   Home: undefined;
   DeadlineDetail: { deadlineId: string };
+  AllDeadlines: undefined;
 };
 
 export type EstimatorStackParamList = {
@@ -16,17 +19,17 @@ export type EstimatorStackParamList = {
 };
 
 export type SettingsStackParamList = {
-  Settings: undefined;
+  SettingsHome: undefined;
   Subscription: undefined;
   Profile: undefined;
 };
 
 /** Bottom tabs; each tab hosts its own stack navigator. */
 export type MainTabParamList = {
-  Dashboard: undefined;
+  Dashboard: NavigatorScreenParams<DashboardStackParamList>;
   Calendar: undefined;
-  Estimator: undefined;
-  Settings: undefined;
+  Estimator: NavigatorScreenParams<EstimatorStackParamList>;
+  Settings: NavigatorScreenParams<SettingsStackParamList>;
 };
 
 /**

@@ -1,31 +1,29 @@
 export type CountryCode = 'US' | 'UK' | 'DE' | 'FR' | 'NL';
 
-export type FreelanceType = 'developer' | 'designer' | 'writer' | 'consultant' | 'creator' | 'other';
+export type FreelanceType =
+  'developer' | 'designer' | 'writer' | 'consultant' | 'creator' | 'other';
 
-export type UserProfile = {
+export interface SettingsProfile {
   displayName: string;
   email: string;
   avatarInitials: string;
   country: CountryCode;
   countryLabel: string;
   freelanceType: FreelanceType;
-};
+  photoURL: string | null;
+}
 
-export type NotificationPrefs = {
+export interface NotificationPreferences {
   globalEnabled: boolean;
-  categories: {
-    quarterly: boolean;
-    income_tax: boolean;
-    self_employment: boolean;
-    vat: boolean;
-    other: boolean;
-  };
-};
+  deadlines: boolean;
+  dayOf: boolean;
+  postDeadline: boolean;
+}
 
-export type CategoryKey = keyof NotificationPrefs['categories'];
-
-export type SubscriptionState = {
-  tier: 'free' | 'pro';
-  expiresAt?: Date | null;
-  isLifetime?: boolean;
+export const COUNTRY_LABELS: Record<CountryCode, string> = {
+  US: 'United States',
+  UK: 'United Kingdom',
+  DE: 'Germany',
+  FR: 'France',
+  NL: 'Netherlands',
 };

@@ -1,114 +1,177 @@
-import { useCallback, useEffect, useState } from 'react';
-import { getAuth } from '@react-native-firebase/auth';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Alert } from 'react-native';
+import { getAuth, onAuthStateChanged } from '@react-native-firebase/auth';
 import {
   collection,
   doc,
   getFirestore,
-  onSnapshot,
+  getDoc,
   serverTimestamp,
   setDoc,
 } from '@react-native-firebase/firestore';
+import * as Notifications from 'expo-notifications';
 
-import type { CategoryKey, NotificationPrefs } from '../types/settings.types';
+import { useUserProfile } from '@/context/UserProfileContext';
+import { generateDeadlines } from '@/utils/deadlineEngine';
+import { scheduleAllNotifications } from '@/utils/notificationScheduler';
+import type { HookDeadline } from '@/hooks/types/deadline.types';
+import type { DeadlineCategory } from '@/components/ui/homeComponents/deadline.types';
 
-const DEFAULT_PREFS: NotificationPrefs = {
+import type { CountryCode, NotificationPreferences } from '../types/settings.types';
+
+const DEFAULT_PREFS: NotificationPreferences = {
   globalEnabled: true,
-  categories: {
-    quarterly: true,
-    income_tax: true,
-    self_employment: true,
-    vat: true,
-    other: true,
-  },
+  deadlines: true,
+  dayOf: true,
+  postDeadline: true,
 };
 
 type UseNotificationPreferencesReturn = {
-  prefs: NotificationPrefs;
+  prefs: NotificationPreferences;
   isSaving: boolean;
-  toggleGlobal: (value: boolean) => void;
-  toggleCategory: (category: CategoryKey, value: boolean) => void;
+  toggleGlobal: () => Promise<void>;
+  toggleCategory: (
+    key: keyof Omit<NotificationPreferences, 'globalEnabled'>,
+    value: boolean,
+  ) => Promise<void>;
 };
 
+function toHookDeadlines(country: CountryCode): HookDeadline[] {
+  return generateDeadlines(country, new Date().getFullYear()).map((deadline) => ({
+    id: deadline.id,
+    title: deadline.title,
+    dueDate: deadline.dueDate instanceof Date ? deadline.dueDate : new Date(deadline.dueDate),
+    isComplete: Boolean(deadline.isComplete ?? deadline.completed ?? false),
+    daysLeft: deadline.daysLeft,
+    category: (deadline.category ?? 'other') as DeadlineCategory,
+    type: deadline.type,
+    description: deadline.description,
+    penaltyInfo: deadline.penaltyInfo,
+    paymentUrl: deadline.paymentUrl,
+    completed: deadline.completed,
+  }));
+}
+
 export function useNotificationPreferences(): UseNotificationPreferencesReturn {
-  const [prefs, setPrefs] = useState<NotificationPrefs>(DEFAULT_PREFS);
+  const mounted = useRef(true);
+  const [uid, setUid] = useState<string | null>(getAuth().currentUser?.uid ?? null);
+  const { deadlines, country } = useUserProfile();
+  const [prefs, setPrefs] = useState<NotificationPreferences>(DEFAULT_PREFS);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    const uid = getAuth().currentUser?.uid;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(getAuth(), (user) => {
+      if (!mounted.current) return;
+      setUid(user?.uid ?? null);
+    });
+    return unsub;
+  }, []);
+
+  useEffect(() => {
     if (!uid) return;
 
-    const firestore = getFirestore();
-    const prefsRef = doc(collection(doc(collection(firestore, 'users'), uid), 'notificationPrefs'), 'settings');
-    const unsubscribe = onSnapshot(
-      prefsRef,
-      (snapshot) => {
+    const run = async () => {
+      try {
+        const prefsRef = doc(collection(doc(collection(getFirestore(), 'users'), uid), 'settings'), 'notifications');
+        const snapshot = await getDoc(prefsRef);
+        if (!mounted.current) return;
         if (!snapshot.exists) {
           setPrefs(DEFAULT_PREFS);
           return;
         }
-        const data = snapshot.data() as Partial<NotificationPrefs>;
+        const data = snapshot.data() as Partial<NotificationPreferences>;
         setPrefs({
           globalEnabled: data.globalEnabled ?? true,
-          categories: {
-            quarterly: data.categories?.quarterly ?? true,
-            income_tax: data.categories?.income_tax ?? true,
-            self_employment: data.categories?.self_employment ?? true,
-            vat: data.categories?.vat ?? true,
-            other: data.categories?.other ?? true,
-          },
+          deadlines: data.deadlines ?? true,
+          dayOf: data.dayOf ?? true,
+          postDeadline: data.postDeadline ?? true,
         });
-      },
-      (error) => {
-        console.error('notificationPrefs snapshot error:', error);
-      },
-    );
-    return unsubscribe;
-  }, []);
-
-  const persist = useCallback((nextPrefs: NotificationPrefs) => {
-    const uid = getAuth().currentUser?.uid;
-    if (!uid) return;
-
-    setPrefs(nextPrefs);
-    setIsSaving(true);
-
-    const run = async () => {
-      try {
-        const firestore = getFirestore();
-        const prefsRef = doc(collection(doc(collection(firestore, 'users'), uid), 'notificationPrefs'), 'settings');
-        await setDoc(
-          prefsRef,
-          {
-            ...nextPrefs,
-            updatedAt: serverTimestamp(),
-          },
-          { merge: true },
-        );
       } catch (error) {
-        console.error('notificationPrefs persist error:', error);
-      } finally {
-        setIsSaving(false);
+        console.error('[useNotificationPreferences] load failed:', error);
       }
     };
     void run();
-  }, []);
+  }, [uid]);
 
-  const toggleGlobal = useCallback((value: boolean) => {
-    persist({
+  const toggleGlobal = useCallback(async (): Promise<void> => {
+    if (!uid) return;
+    const nextPrefs: NotificationPreferences = {
       ...prefs,
-      globalEnabled: value,
-    });
-  }, [persist, prefs]);
+      globalEnabled: !prefs.globalEnabled,
+    };
+    const prev = prefs;
+    setPrefs(nextPrefs);
+    setIsSaving(true);
+    try {
+      const prefsRef = doc(collection(doc(collection(getFirestore(), 'users'), uid), 'settings'), 'notifications');
+      await setDoc(
+        prefsRef,
+        {
+          ...nextPrefs,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true },
+      );
+      if (!nextPrefs.globalEnabled) {
+        await Notifications.cancelAllScheduledNotificationsAsync();
+        console.log('[notificationPrefs] all notifications cancelled');
+      } else {
+        const deadlinesToSchedule =
+          deadlines.length > 0
+            ? deadlines
+            : toHookDeadlines((country as CountryCode | null) ?? 'US');
+        await scheduleAllNotifications(deadlinesToSchedule, nextPrefs);
+      }
+    } catch (error) {
+      if (mounted.current) setPrefs(prev);
+      Alert.alert('Failed', 'Could not update notification settings.');
+      console.error('[useNotificationPreferences] toggleGlobal failed:', error);
+    } finally {
+      if (mounted.current) setIsSaving(false);
+    }
+  }, [country, deadlines, prefs, uid]);
 
-  const toggleCategory = useCallback((category: CategoryKey, value: boolean) => {
-    persist({
+  const toggleCategory = useCallback(async (
+    key: keyof Omit<NotificationPreferences, 'globalEnabled'>,
+    value: boolean,
+  ): Promise<void> => {
+    const nextPrefs: NotificationPreferences = {
       ...prefs,
-      categories: {
-        ...prefs.categories,
-        [category]: value,
-      },
-    });
-  }, [persist, prefs]);
+      [key]: value,
+    };
+    if (!uid) return;
+    const prev = prefs;
+    setPrefs(nextPrefs);
+    setIsSaving(true);
+    try {
+      const prefsRef = doc(collection(doc(collection(getFirestore(), 'users'), uid), 'settings'), 'notifications');
+      await setDoc(
+        prefsRef,
+        {
+          ...nextPrefs,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true },
+      );
+      const deadlinesToSchedule =
+        deadlines.length > 0
+          ? deadlines
+          : toHookDeadlines((country as CountryCode | null) ?? 'US');
+      await scheduleAllNotifications(deadlinesToSchedule, nextPrefs);
+    } catch (error) {
+      if (mounted.current) setPrefs(prev);
+      Alert.alert('Failed', 'Could not update notification settings.');
+      console.error('[useNotificationPreferences] toggleCategory failed:', error);
+    } finally {
+      if (mounted.current) setIsSaving(false);
+    }
+  }, [country, deadlines, prefs, uid]);
 
   return { prefs, isSaving, toggleGlobal, toggleCategory };
 }

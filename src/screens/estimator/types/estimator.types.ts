@@ -13,9 +13,17 @@ export interface TaxBreakdown {
   selfEmploymentTax: number;
   totalOwed: number;
   effectiveRate: number; // percentage e.g. 27.5
+  effectiveTaxRate: number; // decimal ratio e.g. 0.275
   safeAmount: number; // grossIncome - totalOwed, floor 0
   currency: string; // "USD" | "GBP" | "EUR"
   period: string; // "Q2 2026"
+  isEstimate: true;
+  breakdown: {
+    federalTax: number;
+    selfEmploymentTax: number;
+    vat: number;
+    socialContributions: number;
+  };
   // Used by existing TaxBreakdownCard display.
   taxableIncome: number;
   seTax: number;

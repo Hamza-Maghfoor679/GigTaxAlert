@@ -93,7 +93,7 @@ export function generateDeadlines(country: string, currentYear: number): Deadlin
         day: 15,
       },
     ],
-    UK: [
+    GB: [
       {
         id: 'uk-poa1',
         title: 'Payment on Account 1',
@@ -243,9 +243,10 @@ export function generateDeadlines(country: string, currentYear: number): Deadlin
     ],
   };
 
-  const rules = rulesByCountry[country] ?? [];
+  const normalizedCountry = country.toUpperCase() === 'UK' ? 'GB' : country.toUpperCase();
+  const rules = rulesByCountry[normalizedCountry] ?? [];
 
   return rules
-    .map((rule) => buildDeadline(country, currentYear, rule, normalizedToday))
-    .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+    .map((rule) => buildDeadline(normalizedCountry, currentYear, rule, normalizedToday))
+    .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
 }

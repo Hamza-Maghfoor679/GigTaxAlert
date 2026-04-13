@@ -1,7 +1,7 @@
 import * as Haptics from 'expo-haptics';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Alert, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut, ZoomIn, ZoomOut } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
@@ -36,7 +36,20 @@ export default function IncomeEstimatorScreen({ navigation }: IncomeEstimatorScr
     breakdown, safeAmount,
     quarterSummaries,
     loading,
+    lastSavedAt,
   } = useIncomeEstimator();
+  const [showSavedModal, setShowSavedModal] = useState(false);
+
+  useEffect(() => {
+    if (!lastSavedAt) return;
+    setShowSavedModal(true);
+    const timer = setTimeout(() => {
+      setShowSavedModal(false);
+    }, 3000);
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [lastSavedAt]);
 
   const { refreshing, onRefresh } = useRefresh(async () => {
     // re-trigger fetch logic here
@@ -138,6 +151,80 @@ export default function IncomeEstimatorScreen({ navigation }: IncomeEstimatorScr
           </>
         )}
       </ScrollView>
+
+      {showSavedModal ? (
+        <Animated.View
+          entering={FadeIn.duration(220)}
+          exiting={FadeOut.duration(220)}
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            bottom: 0,
+            left: 0,
+            backgroundColor: 'rgba(0,0,0,0.28)',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 20,
+            paddingHorizontal: vs(16),
+          }}
+        >
+          <Animated.View
+            entering={ZoomIn.duration(260)}
+            exiting={ZoomOut.duration(200)}
+            style={{
+              borderRadius: radius.xl,
+              backgroundColor: colors.surface,
+              borderWidth: 1,
+              borderColor: colors.border,
+              paddingHorizontal: vs(24),
+              paddingVertical: vs(20),
+              shadowColor: '#000',
+              shadowOpacity: 0.18,
+              shadowRadius: 18,
+              shadowOffset: { width: 0, height: 10 },
+              elevation: 8,
+              minWidth: '82%',
+              maxWidth: 360,
+              alignItems: 'center',
+            }}
+          >
+            <View
+              style={{
+                width: vs(56),
+                height: vs(56),
+                borderRadius: radius.full,
+                backgroundColor: `${colors.primary}20`,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: vs(12),
+              }}
+            >
+              <Text
+                style={{
+                  color: colors.primary,
+                  fontSize: 28,
+                  fontWeight: '800',
+                  lineHeight: 30,
+                }}
+              >
+                ✓
+              </Text>
+            </View>
+            <Text
+              style={{
+                textAlign: 'center',
+                color: colors.textPrimary,
+                fontSize: 18,
+                fontWeight: '700',
+              }}
+            >
+              Your estimate has been saved
+            </Text>
+          </Animated.View>
+        </Animated.View>
+      ) : null}
     </SafeAreaView>
   );
 }

@@ -17,6 +17,46 @@ import type { EstimatorFormState, Quarter, QuarterSummary, TaxBreakdown } from '
 import { calculateBreakdown } from '../utils/calculateBreakdown';
 
 const QUARTERS: Quarter[] = ['Q1', 'Q2', 'Q3', 'Q4'];
+const FIRESTORE_TIMEOUT_MS = 12000;
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs = FIRESTORE_TIMEOUT_MS): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error('REQUEST_TIMEOUT'));
+    }, timeoutMs);
+
+    promise
+      .then((value) => {
+        clearTimeout(timeout);
+        resolve(value);
+      })
+      .catch((error) => {
+        clearTimeout(timeout);
+        reject(error);
+      });
+  });
+}
+
+function getFriendlyFirestoreMessage(error: unknown): string {
+  const err = error as { code?: string; message?: string };
+
+  switch (err?.code) {
+    case 'firestore/permission-denied':
+    case 'permission-denied':
+      return 'You do not have permission to save estimates for this account.';
+    case 'firestore/failed-precondition':
+    case 'failed-precondition':
+      return 'Firestore needs an index for estimates query (quarter + year). Please create the suggested index in Firebase console.';
+    case 'firestore/unavailable':
+    case 'unavailable':
+      return 'Network unavailable. Please check your connection and try again.';
+    default:
+      if (err?.message === 'REQUEST_TIMEOUT') {
+        return 'Request timed out. Please try again in a moment.';
+      }
+      return 'Could not save entry. Try again.';
+  }
+}
 
 const currentQuarter = (): Quarter => {
   const month = new Date().getMonth();
@@ -39,6 +79,7 @@ type UseIncomeEstimatorReturn = {
   safeAmount: number;
   quarterSummaries: QuarterSummary[];
   loading: boolean;
+  lastSavedAt: number | null;
 };
 
 export function useIncomeEstimator(): UseIncomeEstimatorReturn {
@@ -48,6 +89,7 @@ export function useIncomeEstimator(): UseIncomeEstimatorReturn {
   const [selectedYear, setYear] = useState<number>(new Date().getFullYear());
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
   const [quarterSummaries, setQuarterSummaries] = useState<QuarterSummary[]>(
     QUARTERS.map((quarter) => ({
       quarter,
@@ -79,6 +121,11 @@ export function useIncomeEstimator(): UseIncomeEstimatorReturn {
       parseFloat(form.grossIncome) || 0,
       parseFloat(form.deductions) || 0,
       selectedCountry,
+      {
+        applyStandardDeduction: true,
+        vatRegistered: false,
+        periodMode: 'quarterly',
+      },
     );
     return {
       ...calculated,
@@ -87,8 +134,8 @@ export function useIncomeEstimator(): UseIncomeEstimatorReturn {
   }, [form.grossIncome, form.deductions, selectedCountry, selectedQuarter, selectedYear]);
 
   const safeAmount = useMemo(() => {
-    return Math.max(0, Math.round(breakdown.grossIncome - breakdown.totalOwed));
-  }, [breakdown.grossIncome, breakdown.totalOwed]);
+    return Math.max(0, Math.round(breakdown.netIncome - breakdown.totalOwed));
+  }, [breakdown.netIncome, breakdown.totalOwed]);
 
   const loadSelectedQuarterAndYear = useCallback(async () => {
     const uid = getAuth().currentUser?.uid;
@@ -121,8 +168,8 @@ export function useIncomeEstimator(): UseIncomeEstimatorReturn {
       const yearQuery = query(estimatesRef, where('year', '==', selectedYear));
 
       const [selectedQuarterSnap, yearSnap] = await Promise.all([
-        getDocs(selectedQuarterQuery),
-        getDocs(yearQuery),
+        withTimeout(getDocs(selectedQuarterQuery)),
+        withTimeout(getDocs(yearQuery)),
       ]);
 
       if (!mounted.current) return;
@@ -230,10 +277,10 @@ export function useIncomeEstimator(): UseIncomeEstimatorReturn {
         where('quarter', '==', selectedQuarter),
         where('year', '==', selectedYear),
       );
-      const existingSnap = await getDocs(existingQuery);
+      const existingSnap = await withTimeout(getDocs(existingQuery));
 
       const deductions = parseFloat(form.deductions) || 0;
-      const netIncome = Math.round(grossIncome - deductions);
+      const netIncome = Math.max(0, Math.round(grossIncome - deductions));
       const estimateDoc = {
         quarter: selectedQuarter,
         year: selectedYear,
@@ -246,18 +293,21 @@ export function useIncomeEstimator(): UseIncomeEstimatorReturn {
       };
 
       if (!existingSnap.empty) {
-        await updateDoc(existingSnap.docs[0].ref, estimateDoc);
+        await withTimeout(updateDoc(existingSnap.docs[0].ref, estimateDoc));
       } else {
-        await addDoc(estimatesRef, {
+        await withTimeout(addDoc(estimatesRef, {
           ...estimateDoc,
           createdAt: serverTimestamp(),
-        });
+        }));
       }
 
-      await loadSelectedQuarterAndYear();
+      await withTimeout(loadSelectedQuarterAndYear());
+      if (mounted.current) {
+        setLastSavedAt(Date.now());
+      }
     } catch (error) {
       console.error('[useIncomeEstimator] saveEntry failed:', error);
-      Alert.alert('Save Failed', 'Could not save entry. Try again.');
+      Alert.alert('Save Failed', getFriendlyFirestoreMessage(error));
     } finally {
       if (!mounted.current) return;
       setIsSaving(false);
@@ -285,5 +335,6 @@ export function useIncomeEstimator(): UseIncomeEstimatorReturn {
     safeAmount,
     quarterSummaries,
     loading,
+    lastSavedAt,
   };
 }

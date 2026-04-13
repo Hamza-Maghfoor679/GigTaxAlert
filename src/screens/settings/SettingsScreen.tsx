@@ -10,10 +10,8 @@ import { radius, s, spacing, vs, useThemeColors, useThemeMode, typography } from
 import { NotificationToggles } from './components/Notificationtoggles';
 import { ProfileSection } from './components/ProfileSection';
 import { SettingRow } from './components/Settingrow';
-import { SubscriptionCard } from './components/SubscriptionCard';
 import { useNotificationPreferences } from './hooks/useNotificationPreferences';
 import { useSettingsProfile } from './hooks/useSettingsProfile';
-import { useSubscription } from './hooks/useSubscription';
 import { makeSettingsStyles } from './styles/SettingsStyles';
 import { useAuthStore } from '@/stores/authStore';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
@@ -28,14 +26,13 @@ export default function SettingsScreen() {
   const st = useMemo(() => makeSettingsStyles(colors), [colors]);
 
   const { profile, loading: profileLoading, isSaving: profileSaving, updateCountry, updateFreelanceType } = useSettingsProfile();
-  const { subscription, loading: subLoading, openUpgrade, openManage, restorePurchases } = useSubscription();
   const { prefs, isSaving: notifSaving, toggleGlobal, toggleCategory } = useNotificationPreferences();
   const setStatus = useAuthStore((s) => s.setStatus);
 
 
   // ✅ isLoading stays true until BOTH deferred fetches resolve —
   //    skeleton shows during that window so there's no layout jump
-  const isLoading = profileLoading || subLoading;
+  const isLoading = profileLoading;
 
   const onSignOut = () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
@@ -109,17 +106,6 @@ export default function SettingsScreen() {
                 </View>
               </Animated.View>
             )}
-
-            {/* ── Plan ── */}
-            <Animated.View entering={FadeIn.delay(60).duration(800)}>
-              <Text style={st.sectionLabel}>Plan</Text>
-              <SubscriptionCard
-                subscription={subscription}
-                onUpgrade={openUpgrade}
-                onManage={openManage}
-                onRestore={restorePurchases}
-              />
-            </Animated.View>
 
             {/* ── Profile ── */}
             {profile && (

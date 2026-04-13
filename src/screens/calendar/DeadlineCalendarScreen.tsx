@@ -1,10 +1,16 @@
 import * as Haptics from 'expo-haptics';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { useRefresh } from '@/hooks/useRefresh';
+import {
+  getLocalCurrentMonthKey,
+  getLocalTodayKey,
+  getMonthKeyFromDueDate,
+  normalizeDueDateToIso,
+} from '@/services/deadlineMapper';
 import { radius, s, spacing, typography, vs, useThemeColors } from '@/theme';
 import { Deadline } from '@/components/ui/homeComponents/deadline.types';
 import { DeadlineDetailSheet } from '@/components/ui/homeComponents/DeadlineDetailSheet';
@@ -15,8 +21,8 @@ import { buildMarkedDates, deadlinesForMonth } from './utils/calendarHelpers';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const todayKey = new Date().toISOString().slice(0, 10);       // YYYY-MM-DD
-const currentMonth = new Date().toISOString().slice(0, 7);       // YYYY-MM
+const todayKey = getLocalTodayKey(); // YYYY-MM-DD
+const currentMonth = getLocalCurrentMonthKey(); // YYYY-MM
 
 const toMonthLabel = (key: string): string =>
   new Date(`${key}-01`).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
@@ -35,6 +41,7 @@ export default function DeadlineCalendarScreen() {
   const [visibleMonth, setVisibleMonth] = useState<string>(currentMonth);
   const [filter, setFilter] = useState<FilterCategory>('all');
   const [sheetDeadline, setSheetDeadline] = useState<Deadline | null>(null);
+  const hasAutoAlignedInitialMonth = useRef(false);
 
   // ── Derived ───────────────────────────────────────────────────────────────
 
@@ -47,6 +54,29 @@ export default function DeadlineCalendarScreen() {
     () => deadlinesForMonth(deadlines, visibleMonth, filter),
     [deadlines, visibleMonth, filter],
   );
+
+  useEffect(() => {
+    if (hasAutoAlignedInitialMonth.current || loading || deadlines.length === 0) return;
+    hasAutoAlignedInitialMonth.current = true;
+
+    const currentMonthHasDeadlines = deadlines.some((deadline) =>
+      getMonthKeyFromDueDate(deadline.dueDate) === currentMonth,
+    );
+    if (currentMonthHasDeadlines) return;
+
+    const firstUpcoming = [...deadlines]
+      .filter((deadline) => deadline.daysLeft >= 0)
+      .sort((a, b) => new Date(String(a.dueDate)).getTime() - new Date(String(b.dueDate)).getTime())[0];
+    const firstAny = [...deadlines]
+      .sort((a, b) => new Date(String(a.dueDate)).getTime() - new Date(String(b.dueDate)).getTime())[0];
+    const fallback = firstUpcoming ?? firstAny;
+    if (!fallback) return;
+
+    const nextMonth = getMonthKeyFromDueDate(fallback.dueDate);
+    if (!nextMonth) return;
+    setVisibleMonth(nextMonth);
+    setSelectedDate(normalizeDueDateToIso(fallback.dueDate) ?? todayKey);
+  }, [deadlines, loading]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -217,5 +247,5 @@ const createStyles = (colors: ReturnType<typeof useThemeColors>, bottomInset: nu
     empty: { alignItems: 'center', paddingVertical: vs(28), gap: vs(6) },
     emptyEmoji: { fontSize: s(34) },
     emptyTitle: { ...typography.bodyMedium, color: colors.textPrimary, fontWeight: '700' },
-    emptyText: { ...typography.bodySmall, color: colors.textSecondary },
+    emptyText: { ...typography.bodySmall, color: colors.textSecondary, textAlign: 'center' },
   });

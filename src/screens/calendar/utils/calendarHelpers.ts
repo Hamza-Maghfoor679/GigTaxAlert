@@ -2,6 +2,7 @@ import * as Calendar from 'expo-calendar';
 import { Alert, Platform } from 'react-native';
 
 import { CATEGORY_META } from '@/constants/deadlineCategories';
+import { getLocalTodayKey, getMonthKeyFromDueDate, normalizeDueDateToIso } from '@/services/deadlineMapper';
 import type { Colors } from '@/theme';
 import { Deadline } from '@/components/ui/homeComponents/deadline.types';
 import { FilterCategory, MarkedDates } from '../types';
@@ -16,17 +17,18 @@ export const buildMarkedDates = (
   const map: MarkedDates = {};
 
   for (const d of filtered) {
-    const dateKey = String(d.dueDate).slice(0, 10);
+    const dateKey = normalizeDueDateToIso(d.dueDate);
+    if (!dateKey) continue;
     if (!map[dateKey]) map[dateKey] = { dots: [] };
 
     const category = d.category ?? 'other';
     const meta = CATEGORY_META[category] ?? CATEGORY_META.other;
-    const color = d.completed ? colors.textDisabled : meta.color(colors);
+    const color = d.isComplete ? colors.textDisabled : meta.color(colors);
     const alreadyHas = map[dateKey].dots.some((dot) => dot.key === category);
     if (!alreadyHas) map[dateKey].dots.push({ key: category, color });
   }
 
-  const todayKey = new Date().toISOString().slice(0, 10);
+  const todayKey = getLocalTodayKey();
   if (!map[todayKey]) map[todayKey] = { dots: [] };
   map[todayKey].todayTextColor = colors.primary;
 
@@ -45,13 +47,13 @@ export const deadlinesForMonth = (
   filter: FilterCategory,
 ): Deadline[] => {
   const filtered = deadlines.filter((deadline) => {
-    const inMonth = String(deadline.dueDate).startsWith(monthKey);
+    const inMonth = getMonthKeyFromDueDate(deadline.dueDate) === monthKey;
     const inFilter = filter === 'all' || deadline.category === filter;
     return inMonth && inFilter;
   });
 
   return filtered.sort((a, b) => {
-    if (a.completed !== b.completed) return a.completed ? 1 : -1;
+    if (a.isComplete !== b.isComplete) return a.isComplete ? 1 : -1;
     if (a.daysLeft < 0 && b.daysLeft >= 0) return -1;
     if (a.daysLeft >= 0 && b.daysLeft < 0) return 1;
     return new Date(String(a.dueDate)).getTime() - new Date(String(b.dueDate)).getTime();

@@ -1,15 +1,18 @@
 import * as Haptics from 'expo-haptics';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { RootStackParamList } from '@/navigation/types';
 import { useDeadlines } from '@/hooks/useDeadlines';
+import { normalizeDueDateToIso } from '@/services/deadlineMapper';
 import { spacing, typography, useThemeColors } from '@/theme';
 import { formatCurrency } from '@/utils/formatters';
+import * as PdfService from '@/services/pdf';
 import { useIncomeEstimator } from './hooks/useIncomeEstimator';
 import type { Quarter } from './types/estimator.types';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 
 export type TaxSummaryScreenProps = NativeStackScreenProps<
   RootStackParamList,
@@ -25,8 +28,10 @@ const DATE_RANGES: Record<Quarter, string> = {
 
 export default function TaxSummaryScreen({ navigation }: TaxSummaryScreenProps) {
   const colors = useThemeColors();
+  const tabBarHeight = useBottomTabBarHeight();
   const { selectedYear, quarterSummaries, setQuarter } = useIncomeEstimator();
   const { deadlines } = useDeadlines();
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   const totalIncome = useMemo(
     () => quarterSummaries.reduce((sum, q) => sum + q.grossIncome, 0),
@@ -43,14 +48,65 @@ export default function TaxSummaryScreen({ navigation }: TaxSummaryScreenProps) 
 
   const nextDeadline = useMemo(() => {
     return [...deadlines]
-      .filter((d) => !d.isComplete && d.dueDate.getTime() >= Date.now())
-      .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())[0];
+      .filter((d) => {
+        const iso = normalizeDueDateToIso(d.dueDate);
+        if (!iso) return false;
+        return !d.isComplete && new Date(`${iso}T00:00:00`).getTime() >= Date.now();
+      })
+      .sort((a, b) => {
+        const left = normalizeDueDateToIso(a.dueDate);
+        const right = normalizeDueDateToIso(b.dueDate);
+        if (!left || !right) return 0;
+        return new Date(`${left}T00:00:00`).getTime() - new Date(`${right}T00:00:00`).getTime();
+      })[0];
   }, [deadlines]);
 
-  const onExportPDF = () => {
+  const onExportPDF = useCallback(async () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Alert.alert('Coming soon', 'PDF export will be available in the next update.');
-  };
+    if (exportingPdf) return;
+    setExportingPdf(true);
+
+    try {
+      const quarterRows = quarterSummaries.map((summary) => ({
+        quarter: summary.quarter,
+        range: DATE_RANGES[summary.quarter],
+        hasData: summary.hasData,
+        grossIncome: summary.grossIncome,
+        estimatedTax: summary.estimatedTax,
+      }));
+
+      await PdfService.shareTaxSummaryPdf({
+        year: selectedYear,
+        currencyCode: 'USD',
+        totalIncome,
+        totalTax,
+        quartersFiled,
+        quarterRows,
+        nextDeadlineTitle: nextDeadline?.title ?? null,
+        nextDeadlineDate: nextDeadline?.dueDate
+          ? new Date(String(nextDeadline.dueDate)).toLocaleDateString()
+          : null,
+      });
+    } catch (error) {
+      console.error('[TaxSummaryScreen] export PDF failed:', error);
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Could not generate or share the PDF. Please try again.';
+      Alert.alert('Export Failed', message);
+    } finally {
+      setExportingPdf(false);
+    }
+  }, [
+    exportingPdf,
+    nextDeadline?.dueDate,
+    nextDeadline?.title,
+    quarterSummaries,
+    quartersFiled,
+    selectedYear,
+    totalIncome,
+    totalTax,
+  ]);
 
   const styles = createStyles(colors);
 
@@ -64,7 +120,7 @@ export default function TaxSummaryScreen({ navigation }: TaxSummaryScreenProps) 
         <Text style={styles.subtitle}>{selectedYear} Overview</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: tabBarHeight }]} showsVerticalScrollIndicator={false}>
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Annual totals</Text>
           <View style={styles.row}>
@@ -124,13 +180,18 @@ export default function TaxSummaryScreen({ navigation }: TaxSummaryScreenProps) 
             activeOpacity={0.85}
           >
             <Text style={styles.deadlineText}>
-              {nextDeadline.title} - due {nextDeadline.dueDate.toLocaleDateString()}
+              {nextDeadline.title} - due {new Date(String(nextDeadline.dueDate)).toLocaleDateString()}
             </Text>
           </TouchableOpacity>
         ) : null}
 
-        <TouchableOpacity style={styles.exportButton} onPress={onExportPDF} activeOpacity={0.85}>
-          <Text style={styles.exportText}>📄 Export PDF</Text>
+        <TouchableOpacity
+          style={[styles.exportButton, exportingPdf && { opacity: 0.7 }]}
+          onPress={() => void onExportPDF()}
+          activeOpacity={0.85}
+          disabled={exportingPdf}
+        >
+          <Text style={styles.exportText}>{exportingPdf ? 'Generating PDF...' : '📄 Export PDF'}</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>

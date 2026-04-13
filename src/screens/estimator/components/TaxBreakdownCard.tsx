@@ -37,7 +37,7 @@ function BreakdownRow({ label, value, valueColor, bold = false }: RowProps) {
 }
 
 function selfEmploymentLabel(country: string | null): string {
-  if (country === 'UK') return 'National Insurance';
+  if (country === 'UK' || country === 'GB') return 'National Insurance';
   if (country === 'DE' || country === 'FR' || country === 'NL') return 'Trade tax (est.)';
   return 'Self-employment tax';
 }

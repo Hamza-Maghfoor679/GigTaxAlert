@@ -5,6 +5,7 @@ import { StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import DeadlineCalendarScreen from '@/screens/calendar/DeadlineCalendarScreen';
+import AllDeadlinesScreen from '@/screens/dashboard/AllDeadlinesScreen';
 import DeadlineDetailScreen from '@/screens/dashboard/DeadlineDetailScreen';
 import HomeScreen from '@/screens/dashboard/HomeScreen';
 import IncomeEstimatorScreen from '@/screens/estimator/IncomeEstimatorScreen';
@@ -39,6 +40,11 @@ function DashboardStackNavigator() {
         name="DeadlineDetail"
         options={{ title: 'Deadline', headerShown: false }}
       />
+      <DashboardStack.Screen
+        component={AllDeadlinesScreen}
+        name="AllDeadlines"
+        options={{ title: 'All Deadlines', headerShown: false }}
+      />
     </DashboardStack.Navigator>
   );
 }
@@ -65,7 +71,7 @@ function SettingsStackNavigator() {
     <SettingsStack.Navigator screenOptions={{ headerShown: true }}>
       <SettingsStack.Screen
         component={SettingsScreen}
-        name="Settings"
+        name="SettingsHome"
         options={{ title: 'Settings', headerShown: false }}
       />
       <SettingsStack.Screen

@@ -1,15 +1,18 @@
-import { StyleSheet, View, type ViewStyle } from 'react-native';
+import { View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { useThemeColors } from '@/theme';
-import type { CategoryKey, NotificationPrefs } from '../types/settings.types';
+import type { NotificationPreferences } from '../types/settings.types';
 import { SettingRow } from './Settingrow';
 
 type Props = {
-  prefs: NotificationPrefs;
+  prefs: NotificationPreferences;
   isSaving: boolean;
-  sectionCardStyle: ViewStyle;
-  onToggleGlobal: (value: boolean) => void;
-  onToggleCategory: (key: CategoryKey, value: boolean) => void;
+  sectionCardStyle: StyleProp<ViewStyle>;
+  onToggleGlobal: () => Promise<void>;
+  onToggleCategory: (
+    key: keyof Omit<NotificationPreferences, 'globalEnabled'>,
+    value: boolean,
+  ) => Promise<void>;
 };
 
 export function NotificationToggles({
@@ -18,69 +21,50 @@ export function NotificationToggles({
 }: Props) {
   const colors = useThemeColors();
 
-  const styles = StyleSheet.create({
-    dimmed: { opacity: 0.6 },
-  });
-
   return (
-    <View style={[sectionCardStyle, isSaving && styles.dimmed]} pointerEvents={isSaving ? 'none' : 'auto'}>
+    <View style={sectionCardStyle}>
       <SettingRow
         type="toggle"
         emoji="🔔"
-        iconBg={colors.primary + '20'}
-        label="All Reminders"
+        iconBg={colors.warning + '20'}
+        label="All notifications"
+        subtitle="Enable or disable all alerts"
         value={prefs.globalEnabled}
-        onToggle={onToggleGlobal}
+        disabled={isSaving}
+        onToggle={() => { void onToggleGlobal(); }}
         showDivider
       />
       <SettingRow
         type="toggle"
         emoji="📅"
-        iconBg={colors.warning + '20'}
-        label="Quarterly Tax"
-        value={prefs.categories.quarterly}
-        disabled={!prefs.globalEnabled}
-        onToggle={(value) => onToggleCategory('quarterly', value)}
-        showDivider
-      />
-      <SettingRow
-        type="toggle"
-        emoji="💰"
-        iconBg={colors.success + '20'}
-        label="Income Tax"
-        value={prefs.categories.income_tax}
-        disabled={!prefs.globalEnabled}
-        onToggle={(value) => onToggleCategory('income_tax', value)}
-        showDivider
-      />
-      <SettingRow
-        type="toggle"
-        emoji="👤"
         iconBg={colors.primary + '20'}
-        label="Self-Employment"
-        value={prefs.categories.self_employment}
-        disabled={!prefs.globalEnabled}
-        onToggle={(value) => onToggleCategory('self_employment', value)}
+        label="Deadline reminders"
+        subtitle="30, 7, and 1 day before due date"
+        value={prefs.deadlines}
+        disabled={!prefs.globalEnabled || isSaving}
+        onToggle={(value) => { void onToggleCategory('deadlines', value); }}
         showDivider
       />
       <SettingRow
         type="toggle"
-        emoji="🏦"
+        emoji="⚡"
         iconBg={colors.danger + '20'}
-        label="VAT"
-        value={prefs.categories.vat}
-        disabled={!prefs.globalEnabled}
-        onToggle={(value) => onToggleCategory('vat', value)}
+        label="Day-of alerts"
+        subtitle="Morning reminder on the deadline day"
+        value={prefs.dayOf}
+        disabled={!prefs.globalEnabled || isSaving}
+        onToggle={(value) => { void onToggleCategory('dayOf', value); }}
         showDivider
       />
       <SettingRow
         type="toggle"
-        emoji="📋"
-        iconBg={colors.border}
-        label="1099 / Other"
-        value={prefs.categories.other}
-        disabled={!prefs.globalEnabled}
-        onToggle={(value) => onToggleCategory('other', value)}
+        emoji="✅"
+        iconBg={colors.secondary + '20'}
+        label="Follow-up reminders"
+        subtitle="Check-in 2 days after each deadline"
+        value={prefs.postDeadline}
+        disabled={!prefs.globalEnabled || isSaving}
+        onToggle={(value) => { void onToggleCategory('postDeadline', value); }}
       />
     </View>
   );
