@@ -2,7 +2,6 @@ import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-n
 import { useEffect } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   StyleSheet,
   Text,
@@ -33,6 +32,7 @@ import { useNavigation } from '@react-navigation/native';
 import { FontAwesome } from '@expo/vector-icons';
 import { useOnboardingStore } from '@/stores/useOnboardingStore';
 import { setAuthToken } from '@/services/authToken';
+import { showThemedAlertSimple } from '@/services/themedAlert';
 
 export type LoginSignUpScreenProps = NativeStackScreenProps<AuthStackParamList, 'LoginSignUp'>;
 
@@ -256,10 +256,10 @@ export default function LoginSignUpScreen(_props: LoginSignUpScreenProps) {
       } else if (error.code === statusCodes.IN_PROGRESS) {
         // Already signing in — do nothing
       } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-        Alert.alert('Error', 'Google Play Services not available on this device.');
+        showThemedAlertSimple('Error', 'Google Play Services not available on this device.');
       } else {
         console.error('Google sign-in error:', error);
-        Alert.alert('Sign-in Failed', 'Something went wrong. Please try again.');
+        showThemedAlertSimple('Sign-in Failed', 'Something went wrong. Please try again.');
       }
     } finally {
       setLoading(false);

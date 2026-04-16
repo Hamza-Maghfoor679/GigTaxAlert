@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert } from 'react-native';
 import { getAuth } from '@react-native-firebase/auth';
 
 import type { Deadline } from '@/components/ui/homeComponents/deadline.types';
 import { getUserDeadlines, setDeadlineComplete } from '@/services/deadlines';
 import { toUiDeadline } from '@/services/deadlineMapper';
+import { showThemedAlertSimple } from '@/services/themedAlert';
 
 type UseCalendarDeadlinesReturn = {
   deadlines: Deadline[];
@@ -55,7 +55,7 @@ export function useCalendarDeadlines(): UseCalendarDeadlinesReturn {
         await setDeadlineComplete(id, next);
       } catch {
         setDeadlines(previous);
-        Alert.alert('Sync Failed', 'Could not save changes. Check your connection and try again.');
+        showThemedAlertSimple('Sync Failed', 'Could not save changes. Check your connection and try again.');
       }
     };
 

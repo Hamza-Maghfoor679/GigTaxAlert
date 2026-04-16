@@ -1,7 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useCallback, useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { RootStackParamList } from '@/navigation/types';
@@ -13,6 +13,7 @@ import * as PdfService from '@/services/pdf';
 import { useIncomeEstimator } from './hooks/useIncomeEstimator';
 import type { Quarter } from './types/estimator.types';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { showThemedAlertSimple } from '@/services/themedAlert';
 
 export type TaxSummaryScreenProps = NativeStackScreenProps<
   RootStackParamList,
@@ -93,7 +94,7 @@ export default function TaxSummaryScreen({ navigation }: TaxSummaryScreenProps) 
         error instanceof Error
           ? error.message
           : 'Could not generate or share the PDF. Please try again.';
-      Alert.alert('Export Failed', message);
+      showThemedAlertSimple('Export Failed', message);
     } finally {
       setExportingPdf(false);
     }

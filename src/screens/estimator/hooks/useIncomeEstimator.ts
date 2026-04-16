@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert } from 'react-native';
 import { getAuth } from '@react-native-firebase/auth';
 import {
   addDoc,
@@ -15,6 +14,7 @@ import {
 import { useUserProfile } from '@/context/UserProfileContext';
 import type { EstimatorFormState, Quarter, QuarterSummary, TaxBreakdown } from '../types/estimator.types';
 import { calculateBreakdown } from '../utils/calculateBreakdown';
+import { showThemedAlertSimple } from '@/services/themedAlert';
 
 const QUARTERS: Quarter[] = ['Q1', 'Q2', 'Q3', 'Q4'];
 const FIRESTORE_TIMEOUT_MS = 12000;
@@ -264,7 +264,7 @@ export function useIncomeEstimator(): UseIncomeEstimatorReturn {
 
     const grossIncome = parseFloat(form.grossIncome) || 0;
     if (grossIncome <= 0) {
-      Alert.alert('Enter your gross income first.');
+      showThemedAlertSimple('Enter your gross income first.');
       return;
     }
 
@@ -307,7 +307,7 @@ export function useIncomeEstimator(): UseIncomeEstimatorReturn {
       }
     } catch (error) {
       console.error('[useIncomeEstimator] saveEntry failed:', error);
-      Alert.alert('Save Failed', getFriendlyFirestoreMessage(error));
+      showThemedAlertSimple('Save Failed', getFriendlyFirestoreMessage(error));
     } finally {
       if (!mounted.current) return;
       setIsSaving(false);

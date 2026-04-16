@@ -18,6 +18,7 @@ import { getAuth } from '@react-native-firebase/auth';
 import { useAuthStore } from '@/stores/authStore';
 import { clearAuthToken, getAuthToken, setAuthToken } from '@/services/authToken';
 import { setUnauthorizedHandler } from '@/services/apiClient';
+import { ThemedAlertProvider } from '@/components/ui/ThemedAlertProvider';
 
 // Web client ID from Firebase (type 3) — must match google-services.json oauth_client
 const GOOGLE_WEB_CLIENT_ID =
@@ -123,10 +124,12 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <UserProfileProvider>
         <ThemeProvider>
-          <SafeAreaProvider>
-            <RootNavigator />
-            <ThemedStatusBar />
-          </SafeAreaProvider>
+          <ThemedAlertProvider>
+            <SafeAreaProvider>
+              <RootNavigator />
+              <ThemedStatusBar />
+            </SafeAreaProvider>
+          </ThemedAlertProvider>
         </ThemeProvider>
       </UserProfileProvider>
     </GestureHandlerRootView>

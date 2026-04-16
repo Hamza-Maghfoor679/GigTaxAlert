@@ -1,11 +1,12 @@
 import * as Calendar from 'expo-calendar';
-import { Alert, Platform } from 'react-native';
+import { Platform } from 'react-native';
 
 import { CATEGORY_META } from '@/constants/deadlineCategories';
 import { getLocalTodayKey, getMonthKeyFromDueDate, normalizeDueDateToIso } from '@/services/deadlineMapper';
 import type { Colors } from '@/theme';
 import { Deadline } from '@/components/ui/homeComponents/deadline.types';
 import { FilterCategory, MarkedDates } from '../types';
+import { showThemedAlertSimple } from '@/services/themedAlert';
 
 export const buildMarkedDates = (
   deadlines: Deadline[],
@@ -63,7 +64,7 @@ export const deadlinesForMonth = (
 export const addToDeviceCalendar = async (deadline: Deadline): Promise<void> => {
   const { status } = await Calendar.requestCalendarPermissionsAsync();
   if (status !== 'granted') {
-    Alert.alert(
+    showThemedAlertSimple(
       'Permission required',
       'Please allow calendar access in your device settings to add deadlines.',
     );
@@ -77,7 +78,7 @@ export const addToDeviceCalendar = async (deadline: Deadline): Promise<void> => 
     ) ?? calendars[0];
 
   if (!defaultCalendar) {
-    Alert.alert('No calendar found', 'Could not find a writable calendar on your device.');
+    showThemedAlertSimple('No calendar found', 'Could not find a writable calendar on your device.');
     return;
   }
 
@@ -94,5 +95,5 @@ export const addToDeviceCalendar = async (deadline: Deadline): Promise<void> => 
     url: deadline.paymentUrl || undefined,
   });
 
-  Alert.alert('Added to Calendar', `"${deadline.title}" has been added with reminders.`);
+  showThemedAlertSimple('Added to Calendar', `"${deadline.title}" has been added with reminders.`);
 };

@@ -8,7 +8,6 @@ import {
   updateDoc,
 } from '@react-native-firebase/firestore';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert } from 'react-native';
 
 import type { DeadlineCategory } from '@/components/ui/homeComponents/deadline.types';
 import type { HookDeadline } from '@/hooks/types/deadline.types';
@@ -18,6 +17,7 @@ import { scheduleAllNotifications } from '@/utils/notificationScheduler';
 
 import type { CountryCode, FreelanceType, SettingsProfile } from '../types/settings.types';
 import { COUNTRY_LABELS } from '../types/settings.types';
+import { showThemedAlertSimple } from '@/services/themedAlert';
 
 type UseSettingsProfileReturn = {
   profile: SettingsProfile | null;
@@ -133,7 +133,7 @@ export function useSettingsProfile(): UseSettingsProfileReturn {
       const newDeadlines = toHookDeadlines(code);
       void scheduleAllNotifications(newDeadlines);
     } catch (error) {
-      Alert.alert('Update Failed', 'Could not save country.');
+      showThemedAlertSimple('Update Failed', 'Could not save country.');
       console.error('[useSettingsProfile] updateCountry failed:', error);
     } finally {
       if (mounted.current) setIsSaving(false);
@@ -150,7 +150,7 @@ export function useSettingsProfile(): UseSettingsProfileReturn {
       });
       setProfile({ freelanceType: type });
     } catch (error) {
-      Alert.alert('Update Failed', 'Could not save freelance type.');
+      showThemedAlertSimple('Update Failed', 'Could not save freelance type.');
       console.error('[useSettingsProfile] updateFreelanceType failed:', error);
     } finally {
       if (mounted.current) setIsSaving(false);

@@ -1,6 +1,6 @@
 import * as Haptics from 'expo-haptics';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, ZoomIn, ZoomOut } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -18,6 +18,7 @@ import {
   YearToDateSummary,
 } from './components';
 import { createEstimatorScreenStyles } from './styles/styles';
+import { showThemedAlertSimple } from '@/services/themedAlert';
 
 export type IncomeEstimatorScreenProps = NativeStackScreenProps<
   EstimatorStackParamList,
@@ -57,7 +58,7 @@ export default function IncomeEstimatorScreen({ navigation }: IncomeEstimatorScr
 
   const onExportPDF = () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Alert.alert('Coming soon', 'PDF export will be available in the next update.');
+    showThemedAlertSimple('Coming soon', 'PDF export will be available in the next update.');
   };
 
   return (

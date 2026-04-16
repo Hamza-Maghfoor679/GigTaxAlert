@@ -1,6 +1,6 @@
 import * as Haptics from 'expo-haptics';
 import { useMemo } from 'react';
-import { Alert, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -17,6 +17,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { getAuth } from '@react-native-firebase/auth';
 import { clearAuthToken } from '@/services/authToken';
+import { showThemedAlert } from '@/services/themedAlert';
 
 export default function SettingsScreen() {
   const colors = useThemeColors();
@@ -36,7 +37,7 @@ export default function SettingsScreen() {
 
   const onSignOut = () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    Alert.alert('Sign out', 'Are you sure you want to sign out?', [
+    showThemedAlert({ title: 'Sign out', message: 'Are you sure you want to sign out?', buttons: [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Sign out',
@@ -54,7 +55,7 @@ export default function SettingsScreen() {
           }
         },
       },
-    ]);
+    ]});
   };
 
   const cycleTheme = () => {

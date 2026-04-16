@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert } from 'react-native';
 import { getAuth, onAuthStateChanged } from '@react-native-firebase/auth';
 import {
   collection,
@@ -18,6 +17,7 @@ import type { HookDeadline } from '@/hooks/types/deadline.types';
 import type { DeadlineCategory } from '@/components/ui/homeComponents/deadline.types';
 
 import type { CountryCode, NotificationPreferences } from '../types/settings.types';
+import { showThemedAlertSimple } from '@/services/themedAlert';
 
 const DEFAULT_PREFS: NotificationPreferences = {
   globalEnabled: true,
@@ -130,7 +130,7 @@ export function useNotificationPreferences(): UseNotificationPreferencesReturn {
       }
     } catch (error) {
       if (mounted.current) setPrefs(prev);
-      Alert.alert('Failed', 'Could not update notification settings.');
+      showThemedAlertSimple('Failed', 'Could not update notification settings.');
       console.error('[useNotificationPreferences] toggleGlobal failed:', error);
     } finally {
       if (mounted.current) setIsSaving(false);
@@ -166,7 +166,7 @@ export function useNotificationPreferences(): UseNotificationPreferencesReturn {
       await scheduleAllNotifications(deadlinesToSchedule, nextPrefs);
     } catch (error) {
       if (mounted.current) setPrefs(prev);
-      Alert.alert('Failed', 'Could not update notification settings.');
+      showThemedAlertSimple('Failed', 'Could not update notification settings.');
       console.error('[useNotificationPreferences] toggleCategory failed:', error);
     } finally {
       if (mounted.current) setIsSaving(false);
