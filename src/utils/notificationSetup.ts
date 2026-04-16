@@ -7,6 +7,14 @@ import { updateFcmToken } from '@/services/user';
 
 export async function setupNotifications(uid: string): Promise<void> {
   try {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+      }),
+    });
+
     const { status } = await Notifications.requestPermissionsAsync();
     if (status !== 'granted') {
       console.warn('[notificationSetup] permission not granted, skipping FCM registration');

@@ -2,17 +2,21 @@
  * Local deadline reminders. iOS allows at most 64 pending local notifications;
  * with up to 6 per deadline we stay within that cap for typical deadline counts.
  */
-import * as Notifications from 'expo-notifications';
-import { addDays, format, startOfDay, subDays } from 'date-fns';
-import { Platform } from 'react-native';
+import * as Notifications from "expo-notifications";
+import { addDays, format, startOfDay, subDays } from "date-fns";
+import { Platform } from "react-native";
 
-import type { HookDeadline } from '@/hooks/types/deadline.types';
-import type { NotificationPreferences } from '@/screens/settings/types/settings.types';
+import type { HookDeadline } from "@/hooks/types/deadline.types";
+import type { NotificationPreferences } from "@/screens/settings/types/settings.types";
 
-type ReminderDataType = 'deadline_reminder' | 'day_of' | 'post_deadline' | 'next_deadline';
+type ReminderDataType =
+  | "deadline_reminder"
+  | "day_of"
+  | "post_deadline"
+  | "next_deadline";
 
 function formatDeadlineDate(date: Date): string {
-  return format(date, 'MMMM d');
+  return format(date, "MMMM d");
 }
 
 function setTime(date: Date, hours: number, minutes = 0): Date {
@@ -60,7 +64,7 @@ async function scheduleOne(
       title: content.title,
       body: content.body,
       data: content.data,
-      ...(Platform.OS === 'android' ? { channelId: 'deadlines' } : {}),
+      ...(Platform.OS === "android" ? { channelId: "deadlines" } : {}),
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.DATE,
@@ -76,7 +80,7 @@ export async function scheduleAllNotifications(
 ): Promise<void> {
   try {
     await Notifications.cancelAllScheduledNotificationsAsync();
-    console.log('[notificationScheduler] cleared existing notifications');
+    console.log("[notificationScheduler] cleared existing notifications");
     if (prefs && prefs.globalEnabled === false) {
       return;
     }
@@ -103,50 +107,57 @@ export async function scheduleAllNotifications(
           triggerDate: setTime(subDays(due, 30), 9, 0),
           title: `${deadline.title} in 30 days`,
           body: `${formattedDue} is coming up. A good time to set money aside.`,
-          type: 'deadline_reminder',
+          type: "deadline_reminder",
         },
         {
           triggerDate: setTime(subDays(due, 7), 9, 0),
           title: `${deadline.title} next week`,
-          body: '7 days left. Log into GigTax to check what you owe.',
-          type: 'deadline_reminder',
+          body: "7 days left. Log into GigTax to check what you owe.",
+          type: "deadline_reminder",
         },
         {
           triggerDate: setTime(subDays(due, 1), 9, 0),
           title: `${deadline.title} is TOMORROW`,
           body: "Don't get penalized. Open GigTax to review your estimate.",
-          type: 'deadline_reminder',
+          type: "deadline_reminder",
         },
         {
           triggerDate: setTime(due, 9, 0),
           title: `Tax deadline today — ${deadline.title}`,
-          body: 'Pay before midnight to avoid penalties.',
-          type: 'day_of',
+          body: "Pay before midnight to avoid penalties.",
+          type: "day_of",
         },
         {
           triggerDate: setTime(addDays(due, 2), 10, 0),
           title: `Did you file? — ${deadline.title}`,
-          body: 'Mark it done in GigTax to keep your calendar clean.',
-          type: 'post_deadline',
+          body: "Mark it done in GigTax to keep your calendar clean.",
+          type: "post_deadline",
         },
       ];
 
-      const nextDeadline = findNextDeadlineAfter(deadline, deadlines, todayStart);
+      const nextDeadline = findNextDeadlineAfter(
+        deadline,
+        deadlines,
+        todayStart,
+      );
       if (nextDeadline) {
         const formattedNext = formatDeadlineDate(nextDeadline.dueDate);
         candidates.push({
           triggerDate: setTime(addDays(due, 1), 10, 0),
           title: `${deadline.title} done — next up`,
           body: `${nextDeadline.title} is due on ${formattedNext}.`,
-          type: 'next_deadline',
+          type: "next_deadline",
         });
       }
 
       for (const c of candidates) {
         if (prefs) {
-          if (c.type === 'deadline_reminder' && !prefs.deadlines) continue;
-          if (c.type === 'day_of' && !prefs.dayOf) continue;
-          if ((c.type === 'post_deadline' || c.type === 'next_deadline') && !prefs.postDeadline) {
+          if (c.type === "deadline_reminder" && !prefs.deadlines) continue;
+          if (c.type === "day_of" && !prefs.dayOf) continue;
+          if (
+            (c.type === "post_deadline" || c.type === "next_deadline") &&
+            !prefs.postDeadline
+          ) {
             continue;
           }
         }
@@ -164,6 +175,6 @@ export async function scheduleAllNotifications(
 
     console.log(`[notificationScheduler] scheduled ${count} notifications`);
   } catch (error) {
-    console.error('[notificationScheduler] scheduling failed:', error);
+    console.error("[notificationScheduler] scheduling failed:", error);
   }
 }

@@ -5,7 +5,7 @@ import type { NavigationContainerRef } from '@react-navigation/native';
 
 import { useUserProfile } from '@/context/UserProfileContext';
 import { registerNotificationHandlers } from '@/utils/notificationHandlers';
-import { scheduleAllNotifications } from '@/utils/notificationScheduler';
+import { scheduleAllNotifications, scheduleTestNotification } from '@/utils/notificationScheduler';
 import { setupNotifications } from '@/utils/notificationSetup';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -42,7 +42,12 @@ export function NotificationOrchestrator({ navigationRef }: Props) {
 
   useEffect(() => {
     if (status !== 'main' || !uid || deadlines.length === 0) return;
-    void scheduleAllNotifications(deadlines);
+    void (async () => {
+      await scheduleAllNotifications(deadlines);
+      if (__DEV__) {
+        await scheduleTestNotification();
+      }
+    })();
   }, [status, uid, deadlines]);
 
   useEffect(() => {
@@ -50,7 +55,12 @@ export function NotificationOrchestrator({ navigationRef }: Props) {
       if (nextState !== 'active') return;
       const activeUid = getAuth().currentUser?.uid;
       if (!activeUid || deadlines.length === 0) return;
-      void scheduleAllNotifications(deadlines);
+      void (async () => {
+        await scheduleAllNotifications(deadlines);
+        if (__DEV__) {
+          await scheduleTestNotification();
+        }
+      })();
     };
 
     const sub = AppState.addEventListener('change', onChange);
